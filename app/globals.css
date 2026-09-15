@@ -1,0 +1,102 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-line: var(--line);
+  --color-muted-ink: var(--muted-ink);
+  --color-accent: var(--accent);
+
+  --color-border: var(--line);
+  --color-ring: var(--ink);
+}
+
+:root {
+  color-scheme: light;
+  /* Monochrome editorial palette — warm paper + near-black ink */
+  --background: #f6f5f2;
+  --foreground: #0a0a0a;
+  --paper: #f6f5f2;
+  --ink: #0a0a0a;
+  --muted-ink: #6b6b66;
+  --line: #d8d6cf;
+  --accent: #0a0a0a;
+  --radius: 0px;
+}
+
+@layer base {
+  * {
+    @apply border-line;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: #0a0a0a;
+    color: #f6f5f2;
+  }
+  /* Thin, deliberate scrollbar */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: #0a0a0a #f6f5f2;
+  }
+}
+
+@layer components {
+  .font-display {
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  }
+  .display-huge {
+    font-family: var(--font-display), sans-serif;
+    line-height: 0.86;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+  }
+  /* Editorial label / eyebrow */
+  .eyebrow {
+    font-size: 0.6875rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .link-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size 0.35s cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  .link-underline:hover {
+    background-size: 100% 1px;
+  }
+  .hover-invert {
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  .hover-invert:hover {
+    background-color: var(--ink);
+    color: var(--paper);
+  }
+}
+
+@layer utilities {
+  .grain::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+    background-image: radial-gradient(rgba(0, 0, 0, 0.14) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+}
