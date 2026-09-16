@@ -1,34 +1,14 @@
-import { Analytics } from '@vercel/analytics/next'
-import type { Metadata, Viewport } from 'next'
-import { Anton, Inter } from 'next/font/google'
-import { SiteHeader } from '@/components/site-header'
-import { SiteFooter } from '@/components/site-footer'
-import { AudioProvider } from '@/components/audio/audio-provider'
-import { AudioPlayer } from '@/components/audio/audio-player'
-import './globals.css'
+import type { Metadata } from "next"
 
-const display = Anton({
-  subsets: ['latin'],
-  weight: '400',
-  variable: '--font-display',
-  display: 'swap',
-})
+import "./globals.css"
 
-const sans = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
-  display: 'swap',
-})
+import { AudioProvider } from "@/components/audio/audio-provider"
+import { SiteHeader } from "@/components/site-header"
 
 export const metadata: Metadata = {
-  title: 'no.holds.barred — music / art / culture',
+  title: "no.holds barred",
   description:
-    'no.holds.barred is an independent music label and multidisciplinary creative collective. Artists, affiliates, releases, journal and events.',
-  generator: 'v0.app',
-}
-
-export const viewport: Viewport = {
-  themeColor: '#0a0a0a',
+    "Independent music label and multidisciplinary creative collective.",
 }
 
 export default function RootLayout({
@@ -37,15 +17,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable}`}>
-      <body className="antialiased">
+    <html lang="en">
+      <body>
         <AudioProvider>
           <SiteHeader />
-          <div className="min-h-screen pb-24">{children}</div>
-          <SiteFooter />
-          <AudioPlayer />
+
+          {children}
         </AudioProvider>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )

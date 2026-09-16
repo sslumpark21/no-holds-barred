@@ -2,86 +2,81 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useState } from "react"
 
-const NAV = [
-  { label: "Artists", href: "/artists" },
-  { label: "Affiliates", href: "/affiliates" },
-  { label: "Releases", href: "/releases" },
-  { label: "Journal", href: "/journal" },
-  { label: "Events", href: "/events" },
-  { label: "About", href: "/about" },
+const navigation = [
+  {
+    label: "Artists",
+    href: "/artists",
+  },
+  {
+    label: "Affiliates",
+    href: "/affiliates",
+  },
+  {
+    label: "Releases",
+    href: "/releases",
+  },
+  {
+    label: "Merch",
+    href: "/merch",
+  },
+  {
+    label: "About",
+    href: "/about",
+  },
 ]
 
 export function SiteHeader() {
   const pathname = usePathname()
-  const [open, setOpen] = useState(false)
-
-  useEffect(() => {
-    setOpen(false)
-  }, [pathname])
-
-  useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : ""
-    return () => {
-      document.body.style.overflow = ""
-    }
-  }, [open])
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-paper/85 backdrop-blur-md">
-      <div className="flex items-center justify-between px-4 md:px-6">
+    <header className="fixed left-0 right-0 top-0 z-[100] border-b border-[#d5bb8a]/10 bg-[#050504]/80 text-[#ded2b8] backdrop-blur-md">
+
+      <div className="flex min-h-[58px] items-center justify-between gap-8 px-4 md:px-7">
+
         <Link
           href="/"
-          className="font-display text-lg leading-none tracking-tight py-4 md:py-5"
-          aria-label="no.holds.barred home"
+          className="font-display text-lg tracking-[-0.04em] text-[#ded2b8]"
         >
-          no.holds.barred
+          no.holds barred
         </Link>
 
-        <nav className="hidden md:flex items-stretch">
-          {NAV.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/")
+
+        <nav className="flex items-center gap-4 overflow-x-auto md:gap-7">
+
+          {navigation.map((item) => {
+            const active =
+              pathname === item.href ||
+              pathname.startsWith(`${item.href}/`)
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`eyebrow px-4 py-6 border-l border-line hover-invert ${
-                  active ? "bg-ink text-paper" : ""
-                }`}
+                className={`
+                  whitespace-nowrap
+                  font-mono
+                  text-[8px]
+                  font-bold
+                  uppercase
+                  tracking-[0.18em]
+                  transition-colors
+                  ${
+                    active
+                      ? "text-[#e6c67d]"
+                      : "text-[#c9bba1]/60 hover:text-[#ead8b4]"
+                  }
+                `}
               >
                 {item.label}
               </Link>
             )
           })}
+
         </nav>
 
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="md:hidden eyebrow px-3 py-4 -mr-3"
-          aria-expanded={open}
-          aria-label="Toggle menu"
-        >
-          {open ? "Close" : "Menu"}
-        </button>
       </div>
 
-      {open && (
-        <div className="md:hidden fixed inset-0 top-[57px] z-40 bg-paper border-t border-line">
-          <nav className="flex flex-col">
-            {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="font-display text-4xl uppercase px-4 py-5 border-b border-line"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      )}
     </header>
   )
 }

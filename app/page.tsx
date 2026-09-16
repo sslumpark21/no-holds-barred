@@ -10,7 +10,6 @@ import {
 
 import { BroadcastConsole } from "@/components/music/broadcast-console"
 import { ChannelWindows } from "@/components/home/channel-windows"
-import { latestRelease } from "@/lib/data"
 
 export default function HomePage() {
   const heroRef =
@@ -96,54 +95,123 @@ export default function HomePage() {
   } as CSSProperties
 
   return (
-    <main className="night-site">
+    <main
+      id="top"
+      className="min-h-screen bg-[#030403] text-[#ded3bc]"
+    >
+      <style>
+        {`
+          .nhb-outline {
+            -webkit-text-stroke:
+              1px rgba(3, 4, 3, 0.9);
 
-      {/* =================================================
-          HERO
-          ================================================= */}
+            text-shadow:
+              -1px -1px 0 rgba(0,0,0,.8),
+              1px -1px 0 rgba(0,0,0,.8),
+              -1px 1px 0 rgba(0,0,0,.8),
+              1px 1px 0 rgba(0,0,0,.8),
+              0 5px 18px rgba(0,0,0,.75);
+          }
+
+          .nhb-small-readable {
+            text-shadow:
+              0 1px 2px rgba(0,0,0,.95),
+              0 0 6px rgba(0,0,0,.6);
+          }
+
+          @keyframes nhbHeroGlow {
+            0%,100% {
+              opacity: .45;
+            }
+
+            50% {
+              opacity: .68;
+            }
+          }
+
+          .nhb-hero-glow {
+            animation:
+              nhbHeroGlow
+              6s
+              ease-in-out
+              infinite;
+          }
+        `}
+      </style>
+
+
+      {/* ================================================
+          INTRO
+          ================================================ */}
 
       <section
         ref={heroRef}
         style={heroStyle}
-        className="night-hero relative h-[94vh] min-h-[620px] w-full overflow-hidden"
+        className="relative h-[76vh] min-h-[560px] overflow-hidden bg-[#040504]"
       >
-
         <div
           className="absolute inset-[-3%] transition-transform duration-700 ease-out"
           style={{
             transform:
-              "translate3d(calc(var(--mx) * -10px), calc(var(--my) * -6px), 0) scale(1.05)",
+              "translate3d(calc(var(--mx) * -9px), calc(var(--my) * -5px), 0) scale(1.05)",
           }}
         >
-
           <Image
             src="/images/hero.png"
             alt="no.holds barred"
             fill
             priority
             sizes="100vw"
-            className="object-cover brightness-[0.48] contrast-[1.12] saturate-[0.7]"
+            className="object-cover brightness-[0.38] contrast-[1.16] saturate-[0.65]"
           />
-
         </div>
 
-        <div className="night-hero-wash" />
-        <div className="night-hero-grain" />
+
+        {/* warm night light */}
+
+        <div
+          className="nhb-hero-glow pointer-events-none absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(
+                circle at 72% 36%,
+                rgba(177, 187, 95, .15),
+                transparent 28%
+              ),
+              radial-gradient(
+                circle at 27% 72%,
+                rgba(138, 52, 35, .19),
+                transparent 38%
+              )
+            `,
+          }}
+        />
+
+
+        <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-black/20 to-[#030403]/95" />
+
+        <div className="pointer-events-none absolute inset-0 opacity-[0.1] bg-[repeating-linear-gradient(0deg,rgba(255,255,255,.09)_0px,rgba(255,255,255,.09)_1px,transparent_1px,transparent_5px)]" />
 
 
         <div className="relative z-10 flex h-full flex-col justify-between px-4 py-7 md:px-7 md:py-9">
 
-          <div className="flex items-start justify-between gap-5">
+          <div className="flex items-start justify-between gap-6">
 
-            <div className="live-chip">
-              <span className="live-chip-dot" />
-              Live after midnight
+            <div className="flex items-center gap-3 border border-[#d1b986]/20 bg-black/40 px-3 py-2">
+
+              <span className="h-2 w-2 rounded-full bg-[#ad3429] shadow-[0_0_10px_rgba(200,50,40,.8)]" />
+
+              <span className="nhb-small-readable font-mono text-[8px] font-bold uppercase tracking-[0.22em] text-[#e0d2b7]/80">
+                Live after midnight
+              </span>
+
             </div>
 
-            <div className="hidden text-right font-mono text-[8px] uppercase tracking-[0.22em] text-[#b5aa96]/50 sm:block">
+
+            <div className="nhb-small-readable hidden text-right font-mono text-[8px] font-semibold uppercase leading-relaxed tracking-[0.2em] text-[#d0c1a6]/70 sm:block">
               NHB / 001
               <br />
-              independent transmission
+              Independent transmission
             </div>
 
           </div>
@@ -153,41 +221,40 @@ export default function HomePage() {
             className="transition-transform duration-500 ease-out"
             style={{
               transform:
-                "translate3d(calc(var(--mx) * 8px), calc(var(--my) * 4px), 0)",
+                "translate3d(calc(var(--mx) * 7px), calc(var(--my) * 3px), 0)",
             }}
           >
-
-            <p className="mb-4 font-mono text-[8px] uppercase tracking-[0.28em] text-[#c5b89f]/45">
+            <p className="nhb-small-readable mb-4 font-mono text-[8px] font-bold uppercase tracking-[0.28em] text-[#d8c8aa]/75">
               Music · image · noise · people
             </p>
 
 
-            <h1 className="hero-title promo-display text-[20vw] leading-[0.7] md:text-[14vw]">
+            <h1 className="nhb-outline font-display text-[19vw] leading-[0.7] tracking-[-0.06em] text-[#d4c8b0] md:text-[13vw]">
               no.holds
               <br />
               barred
             </h1>
 
 
-            <div className="mt-8 flex flex-col gap-6 border-t border-[#d5bf95]/15 pt-5 md:flex-row md:items-end md:justify-between">
+            <div className="mt-7 flex flex-col gap-5 border-t border-[#d9c197]/20 pt-5 md:flex-row md:items-end md:justify-between">
 
-              <p className="max-w-md text-sm leading-relaxed text-[#b8aa93]/65">
+              <p className="nhb-small-readable max-w-md text-sm font-medium leading-relaxed text-[#d0c2a8]/78">
                 Independent music and creative
                 transmissions from somewhere after
                 midnight.
               </p>
 
 
-              <div className="flex items-center gap-4 font-mono text-[8px] uppercase tracking-[0.2em] text-[#d2c29f]/50">
+              <div className="nhb-small-readable flex items-center gap-4 font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#d5c5a6]/70">
 
                 <span>
                   CH 001
                 </span>
 
-                <span className="h-px w-10 bg-[#d2c29f]/25" />
+                <span className="h-px w-10 bg-[#d5c5a6]/40" />
 
                 <span>
-                  Scroll to tune in
+                  Tune in below
                 </span>
 
               </div>
@@ -197,19 +264,19 @@ export default function HomePage() {
           </div>
 
 
-          <div className="flex items-end justify-between">
+          <div className="flex items-end justify-between gap-6">
 
-            <span className="font-mono text-[7px] uppercase tracking-[0.24em] text-[#b4a58e]/35">
+            <span className="nhb-small-readable font-mono text-[7px] font-semibold uppercase tracking-[0.24em] text-[#c7b89c]/65">
               est. 2024 / worldwide
             </span>
 
 
-            <Link
-              href="/artists"
-              className="border border-[#c6b188]/25 bg-black/20 px-4 py-3 font-mono text-[8px] uppercase tracking-[0.2em] text-[#d6c7a9]/65 transition-colors hover:bg-[#671c17]/70 hover:text-[#f0dfbf]"
+            <a
+              href="#broadcast"
+              className="nhb-small-readable border border-[#cdb789]/30 bg-black/40 px-4 py-3 font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#e0d1b5]/80 transition-colors hover:bg-[#561b16]/75 hover:text-[#f4e3c3]"
             >
-              Enter archive ↗
-            </Link>
+              Watch ↓
+            </a>
 
           </div>
 
@@ -218,245 +285,122 @@ export default function HomePage() {
       </section>
 
 
-      {/* =================================================
-          BROADCAST CONSOLE
-          ================================================= */}
+      {/* ================================================
+          THE MAIN EVENT IS THE TV
+          ================================================ */}
 
-      <div className="broadcast-night">
+      <div id="broadcast">
         <BroadcastConsole />
       </div>
 
 
-      {/* =================================================
-          CHANNEL WINDOWS
-          ================================================= */}
+      {/* ================================================
+          3 LABEL MEMBERS
+          ================================================ */}
 
       <ChannelWindows />
 
 
-      {/* =================================================
-          MAIN EVENT / RELEASE
-          ================================================= */}
+      {/* ================================================
+          FOOTER
+          ================================================ */}
 
-      <section className="main-event px-4 py-24 md:px-7 md:py-36">
+      <footer className="relative overflow-hidden border-t border-[#a78e65]/15 bg-[#020302] px-4 py-20 md:px-7 md:py-28">
+
+        {/* subtle red glow */}
+
+        <div className="pointer-events-none absolute -bottom-32 right-[-80px] h-[320px] w-[420px] rounded-full bg-[#651d17]/10 blur-[100px]" />
+
 
         <div className="relative z-10 mx-auto max-w-7xl">
 
-          <div className="mb-16">
-
-            <div className="flex flex-wrap items-center gap-4">
-
-              <span className="promo-chip">
-                Main event
-              </span>
-
-              <span className="event-kicker font-mono text-[8px] font-bold uppercase tracking-[0.24em]">
-                latest transmission
-              </span>
-
-            </div>
-
-
-            <h2 className="event-title promo-display mt-6 text-[17vw] leading-[0.67] md:text-[11vw]">
-              {latestRelease.title}
-            </h2>
-
-
-            <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 font-mono text-[8px] uppercase tracking-[0.2em] text-[#9d8b74]/60">
-
-              <span>
-                {latestRelease.artistName}
-              </span>
-
-              <span>
-                {latestRelease.type}
-              </span>
-
-              <span>
-                {latestRelease.catalog}
-              </span>
-
-              <span>
-                {latestRelease.tracklist.length} tracks
-              </span>
-
-            </div>
-
-          </div>
-
-
-          <div className="grid gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-end lg:gap-20">
+          <div className="grid gap-16 md:grid-cols-[1fr_auto] md:items-end">
 
             <div>
 
-              <div className="release-frame">
-
-                <div className="relative aspect-square overflow-hidden">
-
-                  <Image
-                    src={
-                      latestRelease.artwork ||
-                      "/placeholder.svg"
-                    }
-                    alt={`${latestRelease.title} artwork`}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 55vw"
-                    className="release-art object-cover"
-                  />
-
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-[#6b1c17]/10" />
-
-                  <div className="absolute left-4 top-4 promo-chip">
-                    NHB broadcast
-                  </div>
-
-                </div>
-
-              </div>
+              <p className="nhb-small-readable font-mono text-[8px] font-bold uppercase tracking-[0.25em] text-[#c0ae90]/65">
+                no.holds barred
+              </p>
 
 
-              <div className="mt-8 flex items-center justify-between border-t border-[#d5b678]/15 pt-5">
+              <p className="nhb-outline mt-5 font-display text-[14vw] leading-[0.68] tracking-[-0.06em] text-[#a99f8b] md:text-[8vw]">
+                Stay
+                <br />
+                tuned.
+              </p>
+
+            </div>
+
+
+            <div className="md:min-w-[320px]">
+
+              <p className="nhb-small-readable mb-6 font-mono text-[8px] font-bold uppercase tracking-[0.24em] text-[#c1af91]/70">
+                Find the signal
+              </p>
+
+
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
 
                 <a
-                  href={
-                    latestRelease
-                      .tracklist[0]
-                      ?.audioUrl || "#"
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                  className="border border-[#c9a766]/30 bg-[#5e1713]/60 px-5 py-3 font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#e3d2b4] transition-colors hover:bg-[#8d281f]"
+                  href="#"
+                  className="nhb-small-readable border-b border-[#af966c]/20 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#d2c2a7]/78 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
                 >
-                  Listen now ↗
+                  Instagram ↗
                 </a>
 
+                <a
+                  href="#"
+                  className="nhb-small-readable border-b border-[#af966c]/20 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#d2c2a7]/78 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
+                >
+                  YouTube ↗
+                </a>
 
-                <span className="font-mono text-[7px] uppercase tracking-[0.2em] text-[#93836f]/50">
-                  playing after midnight
+                <a
+                  href="#"
+                  className="nhb-small-readable border-b border-[#af966c]/20 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#d2c2a7]/78 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
+                >
+                  Bandcamp ↗
+                </a>
+
+                <a
+                  href="#"
+                  className="nhb-small-readable border-b border-[#af966c]/20 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#d2c2a7]/78 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
+                >
+                  SoundCloud ↗
+                </a>
+
+                <a
+                  href="#"
+                  className="nhb-small-readable border-b border-[#af966c]/20 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#d2c2a7]/78 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
+                >
+                  Spotify ↗
+                </a>
+
+                <a
+                  href="#"
+                  className="nhb-small-readable border-b border-[#af966c]/20 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#d2c2a7]/78 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
+                >
+                  Apple Music ↗
+                </a>
+
+              </div>
+
+
+              <div className="mt-10 flex items-center justify-between border-t border-[#bca274]/15 pt-5">
+
+                <span className="nhb-small-readable font-mono text-[7px] font-semibold uppercase tracking-[0.18em] text-[#a9987f]/65">
+                  independent · worldwide
                 </span>
 
-              </div>
 
-            </div>
-
-
-            <div>
-
-              <div className="mb-5 flex items-center justify-between border-b border-[#d4b779]/15 pb-4">
-
-                <span className="font-mono text-[8px] uppercase tracking-[0.22em] text-[#b49d79]/55">
-                  Card / tracklist
-                </span>
-
-                <span className="font-mono text-[8px] uppercase tracking-[0.22em] text-[#b49d79]/55">
-                  {latestRelease.tracklist.length} rounds
-                </span>
+                <Link
+                  href="#top"
+                  className="nhb-small-readable font-mono text-[8px] font-bold uppercase tracking-[0.18em] text-[#cbb58e]/75 hover:text-[#e3c581]"
+                >
+                  Top ↑
+                </Link>
 
               </div>
-
-
-              <div>
-
-                {latestRelease.tracklist.map(
-                  (track, index) => (
-
-                    <a
-                      key={track.id}
-                      href={track.audioUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="track-row-night group flex items-center justify-between gap-5 py-5"
-                    >
-
-                      <div className="flex min-w-0 items-center gap-5">
-
-                        <span className="font-mono text-[8px] text-[#8d755b]/55">
-                          {String(
-                            index + 1
-                          ).padStart(2, "0")}
-                        </span>
-
-                        <span className="promo-display truncate text-2xl md:text-4xl">
-                          {track.title}
-                        </span>
-
-                      </div>
-
-
-                      <span className="font-mono text-[7px] uppercase tracking-[0.16em] text-[#8e795f]/45 group-hover:text-[#d6b274]">
-                        Play ↗
-                      </span>
-
-                    </a>
-
-                  )
-                )}
-
-              </div>
-
-
-              <div className="mt-9 border border-[#c8a66d]/12 bg-black/20 p-5">
-
-                <p className="max-w-lg text-sm leading-relaxed text-[#aa9980]/60">
-                  Current transmission from the
-                  no.holds barred archive. Releases,
-                  demos, unfinished material and
-                  whatever is currently moving through
-                  the channel.
-                </p>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
-
-
-      {/* =================================================
-          FOOTER
-          ================================================= */}
-
-      <footer className="night-footer px-4 py-20 md:px-7 md:py-28">
-
-        <div className="relative z-10 mx-auto max-w-7xl">
-
-          <div className="flex flex-col gap-16 md:flex-row md:items-end md:justify-between">
-
-            <div>
-
-              <p className="font-mono text-[8px] uppercase tracking-[0.28em] text-[#806f5b]/45">
-                no.holds barred / nhb 001
-              </p>
-
-              <p className="footer-big promo-display mt-5 text-[14vw] leading-[0.68] md:text-[8vw]">
-                End
-                <br />
-                transmission.
-              </p>
-
-            </div>
-
-
-            <div className="space-y-3 text-right font-mono text-[7px] uppercase tracking-[0.2em] text-[#82725e]/45">
-
-              <p>
-                music / video / people / archive
-              </p>
-
-              <p>
-                independent · worldwide
-              </p>
-
-              <Link
-                href="#"
-                className="inline-block border-b border-[#a79070]/25 pb-1 transition-colors hover:text-[#d7b470]"
-              >
-                Return to signal ↑
-              </Link>
 
             </div>
 
