@@ -6,14 +6,35 @@ import { useState } from "react"
 
 import { affiliates } from "@/lib/data"
 
-/*
-  TEMPORARY:
-  Using the first three current artist entries.
-  Once we confirm the exact three label members,
-  we will connect those instead.
-*/
-const labelMembers =
-  affiliates.slice(0, 3)
+const labelMembers = [
+  {
+    name: "Danoot",
+    slug: "danoot",
+    role: "Label Member",
+    location: "no.holds.barred.",
+    hero:
+      affiliates[0]?.hero ||
+      "/placeholder.svg",
+  },
+  {
+    name: "MoxLi",
+    slug: "moxli",
+    role: "Label Member",
+    location: "no.holds.barred.",
+    hero:
+      affiliates[1]?.hero ||
+      "/placeholder.svg",
+  },
+  {
+    name: "Matei!",
+    slug: "matei",
+    role: "Label Member",
+    location: "no.holds.barred.",
+    hero:
+      affiliates[2]?.hero ||
+      "/placeholder.svg",
+  },
+]
 
 const windowLayouts = [
   "md:col-span-7 md:h-[430px]",
@@ -120,7 +141,7 @@ export function ChannelWindows() {
       </style>
 
 
-      {/* light cast from hovered window */}
+      {/* hovered-window light spill */}
 
       <div
         className="pointer-events-none absolute inset-0 transition-all duration-700"
@@ -144,7 +165,7 @@ export function ChannelWindows() {
       />
 
 
-      {/* dark building texture */}
+      {/* building texture */}
 
       <div
         className="pointer-events-none absolute inset-0 opacity-60"
@@ -174,12 +195,14 @@ export function ChannelWindows() {
       />
 
 
+      {/* vignette */}
+
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_22%,rgba(0,0,0,.4)_68%,rgba(0,0,0,.88)_100%)]" />
 
 
       <div className="relative z-10 mx-auto max-w-7xl">
 
-        {/* title */}
+        {/* heading */}
 
         <div className="mb-20 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
 
@@ -190,7 +213,7 @@ export function ChannelWindows() {
               <span className="h-2 w-2 rounded-full bg-[#a53026] shadow-[0_0_9px_rgba(169,48,38,.7)]" />
 
               <p className="nhb-member-small font-mono text-[8px] font-bold uppercase tracking-[0.26em] text-[#c6b79b]/72">
-                no.holds barred / roster
+                no.holds.barred. / roster
               </p>
 
             </div>
@@ -235,7 +258,7 @@ export function ChannelWindows() {
                 return (
                   <Link
                     key={artist.slug}
-                    href={`/artists/${artist.slug}`}
+                    href="/artists"
                     onMouseEnter={() =>
                       setActiveChannel(
                         index
@@ -267,20 +290,15 @@ export function ChannelWindows() {
                     />
 
 
-                    {/* frame */}
+                    {/* window frame */}
 
                     <div className="absolute inset-0 border-[8px] border-[#15120f] bg-[#040403] shadow-[0_20px_35px_rgba(0,0,0,.65),inset_0_0_0_1px_rgba(255,255,255,.025)]">
 
                       <div className="absolute inset-[7px] overflow-hidden border border-[#3a3125] bg-black">
 
                         <Image
-                          src={
-                            artist.hero ||
-                            "/placeholder.svg"
-                          }
-                          alt={
-                            artist.name
-                          }
+                          src={artist.hero}
+                          alt={artist.name}
                           fill
                           sizes="(max-width: 768px) 100vw, 65vw"
                           className="object-cover brightness-[0.32] contrast-[1.15] saturate-[0.66] sepia-[0.12] transition-all duration-1000 ease-out group-hover:scale-[1.035] group-hover:brightness-[0.7] group-hover:saturate-[0.88]"
@@ -308,7 +326,7 @@ export function ChannelWindows() {
                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/30" />
 
 
-                        {/* physical window bars */}
+                        {/* window bars */}
 
                         <div className="pointer-events-none absolute inset-y-0 left-[48%] w-px bg-black/35" />
 
@@ -320,12 +338,12 @@ export function ChannelWindows() {
                         <div className="pointer-events-none absolute -left-[8%] top-[4%] h-[35%] w-[55%] rotate-[-7deg] bg-white/[0.03] blur-xl" />
 
 
-                        {/* scan texture */}
+                        {/* analog texture */}
 
                         <div className="pointer-events-none absolute inset-0 opacity-[0.05] bg-[repeating-linear-gradient(0deg,rgba(255,255,255,.15)_0px,rgba(255,255,255,.15)_1px,transparent_1px,transparent_4px)]" />
 
 
-                        {/* information */}
+                        {/* info */}
 
                         <div className="absolute inset-0 flex flex-col justify-between p-5 md:p-6">
 
@@ -351,25 +369,19 @@ export function ChannelWindows() {
                           <div>
 
                             <p className="nhb-member-small mb-3 font-mono text-[8px] font-bold uppercase tracking-[0.19em] text-[#cdbd9f]/68">
-                              {
-                                artist.location
-                              }
+                              {artist.location}
                             </p>
 
 
                             <h3 className="nhb-member-title font-display text-[10vw] leading-[0.74] tracking-[-0.05em] text-[#ded0b3] transition-all duration-500 group-hover:translate-x-2 group-hover:text-[#f1dfb9] md:text-[4.8vw]">
-                              {
-                                artist.name
-                              }
+                              {artist.name}
                             </h3>
 
 
                             <div className="mt-5 flex items-center justify-between border-t border-[#dabd82]/20 pt-4">
 
                               <span className="nhb-member-small font-mono text-[8px] font-bold uppercase tracking-[0.17em] text-[#c5b496]/65">
-                                {
-                                  artist.role
-                                }
+                                {artist.role}
                               </span>
 
 
@@ -402,7 +414,7 @@ export function ChannelWindows() {
             </span>
 
             <span className="nhb-member-small font-mono text-[7px] font-bold uppercase tracking-[0.19em] text-[#a99b84]/65">
-              no.holds barred
+              no.holds.barred.
             </span>
 
           </div>

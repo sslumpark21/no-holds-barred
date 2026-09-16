@@ -6,7 +6,7 @@ import { AudioProvider } from "@/components/audio/audio-provider"
 import { SiteHeader } from "@/components/site-header"
 
 export const metadata: Metadata = {
-  title: "no.holds barred",
+  title: "no.holds.barred.",
   description:
     "Independent music label and multidisciplinary creative collective.",
 }
@@ -21,7 +21,6 @@ export default function RootLayout({
       <body>
         <AudioProvider>
           <SiteHeader />
-
           {children}
         </AudioProvider>
       </body>

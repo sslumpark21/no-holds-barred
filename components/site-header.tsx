@@ -38,9 +38,8 @@ export function SiteHeader() {
           href="/"
           className="font-display text-lg tracking-[-0.04em] text-[#ded2b8]"
         >
-          no.holds barred
+          no.holds.barred.
         </Link>
-
 
         <nav className="flex items-center gap-4 overflow-x-auto md:gap-7">
 

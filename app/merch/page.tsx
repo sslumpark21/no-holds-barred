@@ -45,7 +45,7 @@ export default function MerchPage() {
       <div className="relative z-10 text-center">
 
         <p className="mb-6 font-mono text-[8px] font-bold uppercase tracking-[0.3em] text-[#c2b294]/60">
-          no.holds barred / merch
+          no.holds.barred. / merch
         </p>
 
         <h1 className="merch-outline font-display text-[16vw] leading-[0.74] tracking-[-0.06em] text-[#b2a794] md:text-[10vw]">
