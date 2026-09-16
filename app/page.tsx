@@ -2,35 +2,64 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useEffect, useRef, type CSSProperties } from "react"
+import {
+  useEffect,
+  useRef,
+  type CSSProperties,
+} from "react"
 
 import { BroadcastConsole } from "@/components/music/broadcast-console"
-import { affiliates, latestRelease } from "@/lib/data"
+import { ChannelWindows } from "@/components/home/channel-windows"
+import { latestRelease } from "@/lib/data"
 
 export default function HomePage() {
-  const heroRef = useRef<HTMLElement | null>(null)
+  const heroRef =
+    useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     const hero = heroRef.current
 
     if (!hero) return
 
-    const isReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches
+    const reducedMotion =
+      window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches
 
-    const isTouch = window.matchMedia("(pointer: coarse)").matches
+    const touch =
+      window.matchMedia(
+        "(pointer: coarse)"
+      ).matches
 
-    if (isReducedMotion || isTouch) return
+    if (reducedMotion || touch) return
 
-    const handleMove = (event: PointerEvent) => {
-      const rect = hero.getBoundingClientRect()
+    const handleMove = (
+      event: PointerEvent
+    ) => {
+      const rect =
+        hero.getBoundingClientRect()
 
-      const x = ((event.clientX - rect.left) / rect.width - 0.5) * 2
-      const y = ((event.clientY - rect.top) / rect.height - 0.5) * 2
+      const x =
+        ((event.clientX - rect.left) /
+          rect.width -
+          0.5) *
+        2
 
-      hero.style.setProperty("--mx", x.toString())
-      hero.style.setProperty("--my", y.toString())
+      const y =
+        ((event.clientY - rect.top) /
+          rect.height -
+          0.5) *
+        2
+
+      hero.style.setProperty(
+        "--mx",
+        x.toString()
+      )
+
+      hero.style.setProperty(
+        "--my",
+        y.toString()
+      )
     }
 
     const handleLeave = () => {
@@ -38,12 +67,26 @@ export default function HomePage() {
       hero.style.setProperty("--my", "0")
     }
 
-    hero.addEventListener("pointermove", handleMove)
-    hero.addEventListener("pointerleave", handleLeave)
+    hero.addEventListener(
+      "pointermove",
+      handleMove
+    )
+
+    hero.addEventListener(
+      "pointerleave",
+      handleLeave
+    )
 
     return () => {
-      hero.removeEventListener("pointermove", handleMove)
-      hero.removeEventListener("pointerleave", handleLeave)
+      hero.removeEventListener(
+        "pointermove",
+        handleMove
+      )
+
+      hero.removeEventListener(
+        "pointerleave",
+        handleLeave
+      )
     }
   }, [])
 
@@ -53,43 +96,58 @@ export default function HomePage() {
   } as CSSProperties
 
   return (
-    <main className="bg-paper text-ink">
+    <main className="night-site">
 
-      {/* HERO */}
+      {/* =================================================
+          HERO
+          ================================================= */}
+
       <section
         ref={heroRef}
         style={heroStyle}
-        className="relative h-[92vh] min-h-[560px] w-full overflow-hidden bg-ink text-paper"
+        className="night-hero relative h-[94vh] min-h-[620px] w-full overflow-hidden"
       >
+
         <div
           className="absolute inset-[-3%] transition-transform duration-700 ease-out"
           style={{
             transform:
-              "translate3d(calc(var(--mx) * -10px), calc(var(--my) * -6px), 0) scale(1.04)",
+              "translate3d(calc(var(--mx) * -10px), calc(var(--my) * -6px), 0) scale(1.05)",
           }}
         >
+
           <Image
             src="/images/hero.png"
             alt="no.holds barred"
             fill
             priority
             sizes="100vw"
-            className="object-cover opacity-70"
+            className="object-cover brightness-[0.48] contrast-[1.12] saturate-[0.7]"
           />
+
         </div>
 
-        <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/15 to-ink/40" />
+        <div className="night-hero-wash" />
+        <div className="night-hero-grain" />
 
-        <div className="relative z-10 flex h-full flex-col justify-between px-4 py-8 md:px-6">
-          <div className="flex items-start justify-between eyebrow text-paper/80">
-            <span>Est. 2024</span>
 
-            <span className="hidden sm:block">
-              Independent · Worldwide
-            </span>
+        <div className="relative z-10 flex h-full flex-col justify-between px-4 py-7 md:px-7 md:py-9">
 
-            <span>Vol. 01</span>
+          <div className="flex items-start justify-between gap-5">
+
+            <div className="live-chip">
+              <span className="live-chip-dot" />
+              Live after midnight
+            </div>
+
+            <div className="hidden text-right font-mono text-[8px] uppercase tracking-[0.22em] text-[#b5aa96]/50 sm:block">
+              NHB / 001
+              <br />
+              independent transmission
+            </div>
+
           </div>
+
 
           <div
             className="transition-transform duration-500 ease-out"
@@ -98,253 +156,314 @@ export default function HomePage() {
                 "translate3d(calc(var(--mx) * 8px), calc(var(--my) * 4px), 0)",
             }}
           >
-            <div className="relative">
-              <p className="mb-3 eyebrow text-paper/60">
-                Independent music / art / culture
+
+            <p className="mb-4 font-mono text-[8px] uppercase tracking-[0.28em] text-[#c5b89f]/45">
+              Music · image · noise · people
+            </p>
+
+
+            <h1 className="hero-title promo-display text-[20vw] leading-[0.7] md:text-[14vw]">
+              no.holds
+              <br />
+              barred
+            </h1>
+
+
+            <div className="mt-8 flex flex-col gap-6 border-t border-[#d5bf95]/15 pt-5 md:flex-row md:items-end md:justify-between">
+
+              <p className="max-w-md text-sm leading-relaxed text-[#b8aa93]/65">
+                Independent music and creative
+                transmissions from somewhere after
+                midnight.
               </p>
 
-              <h1 className="font-display text-[18vw] leading-[0.78] tracking-[-0.06em] md:text-[13vw]">
-                no.holds
-                <br />
-                .barred
-              </h1>
+
+              <div className="flex items-center gap-4 font-mono text-[8px] uppercase tracking-[0.2em] text-[#d2c29f]/50">
+
+                <span>
+                  CH 001
+                </span>
+
+                <span className="h-px w-10 bg-[#d2c29f]/25" />
+
+                <span>
+                  Scroll to tune in
+                </span>
+
+              </div>
+
             </div>
 
-            <div className="mt-8 flex flex-wrap items-end justify-between gap-6">
-              <p className="font-display text-xl uppercase tracking-tight md:text-3xl">
-                Music / Art / Culture
-              </p>
-
-              <p className="max-w-sm text-sm leading-relaxed text-paper/70">
-                An independent music label and multidisciplinary creative
-                collective. A scene, not a catalogue.
-              </p>
-            </div>
           </div>
 
-          <div className="flex items-end justify-between gap-6 eyebrow text-paper/70">
-            <div className="flex items-center gap-4">
-              <span>Scroll</span>
 
-              <span
-                aria-hidden="true"
-                className="h-px w-16 bg-paper/40"
-              />
+          <div className="flex items-end justify-between">
 
-              <span>Transmission in progress</span>
-            </div>
+            <span className="font-mono text-[7px] uppercase tracking-[0.24em] text-[#b4a58e]/35">
+              est. 2024 / worldwide
+            </span>
+
 
             <Link
               href="/artists"
-              className="group hidden items-center gap-3 border border-paper/40 px-4 py-3 text-paper transition-colors duration-300 hover:bg-paper hover:text-ink sm:flex"
+              className="border border-[#c6b188]/25 bg-black/20 px-4 py-3 font-mono text-[8px] uppercase tracking-[0.2em] text-[#d6c7a9]/65 transition-colors hover:bg-[#671c17]/70 hover:text-[#f0dfbf]"
             >
-              <span>Enter archive</span>
+              Enter archive ↗
+            </Link>
 
-              <span className="transition-transform duration-300 group-hover:translate-x-1">
-                ↗
+          </div>
+
+        </div>
+
+      </section>
+
+
+      {/* =================================================
+          BROADCAST CONSOLE
+          ================================================= */}
+
+      <div className="broadcast-night">
+        <BroadcastConsole />
+      </div>
+
+
+      {/* =================================================
+          CHANNEL WINDOWS
+          ================================================= */}
+
+      <ChannelWindows />
+
+
+      {/* =================================================
+          MAIN EVENT / RELEASE
+          ================================================= */}
+
+      <section className="main-event px-4 py-24 md:px-7 md:py-36">
+
+        <div className="relative z-10 mx-auto max-w-7xl">
+
+          <div className="mb-16">
+
+            <div className="flex flex-wrap items-center gap-4">
+
+              <span className="promo-chip">
+                Main event
               </span>
-            </Link>
-          </div>
-        </div>
-      </section>
 
-      {/* BROADCAST CONSOLE */}
-      <BroadcastConsole />
+              <span className="event-kicker font-mono text-[8px] font-bold uppercase tracking-[0.24em]">
+                latest transmission
+              </span>
 
-      {/* AFFILIATES */}
-      <section className="relative overflow-hidden border-t border-ink/15 px-4 py-20 md:px-6 md:py-32">
-        <div className="mb-12 flex items-end justify-between gap-6 md:mb-16">
-          <div>
-            <p className="eyebrow text-muted-ink">
-              Artists We&apos;re Listening To
-            </p>
+            </div>
 
-            <h2 className="mt-3 font-display text-[15vw] leading-[0.75] tracking-[-0.05em] uppercase md:text-[11vw]">
-              Affiliates
-            </h2>
-          </div>
 
-          <Link
-            href="/affiliates"
-            className="eyebrow hidden border-b border-ink/40 pb-1 transition-opacity hover:opacity-50 sm:block"
-          >
-            View archive ↗
-          </Link>
-        </div>
-
-        <div className="relative">
-          {affiliates.slice(0, 4).map((artist, index) => (
-            <Link
-              key={artist.slug}
-              href={`/artists/${artist.slug}`}
-              className={`group relative block overflow-hidden border-t border-ink/20 py-7 md:py-10 ${
-                index % 2 === 1 ? "md:pl-[12vw]" : ""
-              }`}
-            >
-              <div className="pointer-events-none absolute inset-y-0 right-[8%] hidden w-[220px] overflow-hidden opacity-0 transition-all duration-500 ease-out group-hover:opacity-70 md:block">
-                <Image
-                  src={artist.hero || "/placeholder.svg"}
-                  alt=""
-                  fill
-                  sizes="220px"
-                  className="object-cover grayscale transition-transform duration-700 ease-out group-hover:scale-110"
-                />
-              </div>
-
-              <div className="relative z-10 flex items-center justify-between gap-6">
-                <div className="flex items-baseline gap-4 md:gap-8">
-                  <span className="eyebrow text-muted-ink">
-                    0{index + 1}
-                  </span>
-
-                  <h3 className="font-display text-[10vw] leading-[0.8] tracking-[-0.04em] uppercase transition-transform duration-500 group-hover:translate-x-3 md:text-[7vw]">
-                    {artist.name}
-                  </h3>
-                </div>
-
-                <span className="hidden text-sm text-muted-ink transition-transform duration-500 group-hover:translate-x-2 md:block">
-                  ↗
-                </span>
-              </div>
-
-              <div className="relative z-10 mt-3 flex items-center gap-3 pl-8 text-xs uppercase tracking-[0.12em] text-muted-ink md:pl-16">
-                <span>{artist.role}</span>
-                <span>·</span>
-                <span>{artist.location}</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        <div className="mt-10 sm:hidden">
-          <Link
-            href="/affiliates"
-            className="eyebrow border-b border-ink/40 pb-1"
-          >
-            View archive ↗
-          </Link>
-        </div>
-      </section>
-
-      {/* LATEST RELEASE */}
-      <section className="relative overflow-hidden bg-ink px-4 py-20 text-paper md:px-6 md:py-32">
-        <div className="mb-16 flex items-start justify-between gap-6 md:mb-24">
-          <div>
-            <p className="eyebrow mb-3 text-paper/50">
-              Latest transmission
-            </p>
-
-            <h2 className="font-display text-[12vw] leading-[0.78] tracking-[-0.05em] uppercase md:text-[9vw]">
+            <h2 className="event-title promo-display mt-6 text-[17vw] leading-[0.67] md:text-[11vw]">
               {latestRelease.title}
             </h2>
-          </div>
 
-          <Link
-            href={`/releases/${latestRelease.slug}`}
-            className="eyebrow link-underline shrink-0 pt-2"
-          >
-            Open release ↗
-          </Link>
-        </div>
 
-        <div className="relative grid gap-12 md:grid-cols-[1.15fr_0.85fr] md:items-end md:gap-20">
-          <div className="relative">
-            <div className="group relative aspect-square max-w-2xl overflow-hidden bg-paper/10">
-              <Image
-                src={latestRelease.artwork || "/placeholder.svg"}
-                alt={`${latestRelease.title} artwork`}
-                fill
-                sizes="(max-width: 768px) 100vw, 65vw"
-                className="object-cover transition-transform duration-1000 ease-out group-hover:scale-[1.04]"
-              />
+            <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 font-mono text-[8px] uppercase tracking-[0.2em] text-[#9d8b74]/60">
 
-              <div className="absolute inset-0 bg-ink/10 transition-opacity duration-500 group-hover:bg-transparent" />
-
-              <div className="absolute bottom-5 left-5 eyebrow text-paper/70">
-                {latestRelease.catalog}
-              </div>
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-5 border-t border-paper/20 pt-5">
-              <a
-                href={latestRelease.tracklist[0]?.audioUrl || "#"}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-11 items-center border border-paper px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-[0.15em] transition-colors duration-300 hover:bg-paper hover:text-ink"
-              >
-                Listen ↗
-              </a>
-
-              <div className="eyebrow text-paper/50">
-                {latestRelease.artistName} · {latestRelease.type}
-              </div>
-            </div>
-          </div>
-
-          <div className="relative md:pb-2">
-            <div className="mb-6 flex items-center justify-between border-b border-paper/20 pb-3">
-              <span className="eyebrow text-paper/50">
-                Tracklist
+              <span>
+                {latestRelease.artistName}
               </span>
 
-              <span className="eyebrow text-paper/50">
+              <span>
+                {latestRelease.type}
+              </span>
+
+              <span>
+                {latestRelease.catalog}
+              </span>
+
+              <span>
                 {latestRelease.tracklist.length} tracks
               </span>
+
             </div>
 
-            <div className="divide-y divide-paper/20">
-              {latestRelease.tracklist.map((track, index) => (
-                <a
-                  key={track.id}
-                  href={track.audioUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group flex items-center justify-between gap-4 py-4 transition-transform duration-300 hover:translate-x-2"
-                >
-                  <div className="flex min-w-0 items-center gap-4">
-                    <span className="font-mono text-[9px] text-paper/30">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
+          </div>
 
-                    <span className="truncate font-display text-xl uppercase md:text-2xl">
-                      {track.title}
-                    </span>
+
+          <div className="grid gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-end lg:gap-20">
+
+            <div>
+
+              <div className="release-frame">
+
+                <div className="relative aspect-square overflow-hidden">
+
+                  <Image
+                    src={
+                      latestRelease.artwork ||
+                      "/placeholder.svg"
+                    }
+                    alt={`${latestRelease.title} artwork`}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 55vw"
+                    className="release-art object-cover"
+                  />
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-[#6b1c17]/10" />
+
+                  <div className="absolute left-4 top-4 promo-chip">
+                    NHB broadcast
                   </div>
 
-                  <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.15em] text-paper/30 transition-colors group-hover:text-paper">
-                    Play ↗
-                  </span>
+                </div>
+
+              </div>
+
+
+              <div className="mt-8 flex items-center justify-between border-t border-[#d5b678]/15 pt-5">
+
+                <a
+                  href={
+                    latestRelease
+                      .tracklist[0]
+                      ?.audioUrl || "#"
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="border border-[#c9a766]/30 bg-[#5e1713]/60 px-5 py-3 font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#e3d2b4] transition-colors hover:bg-[#8d281f]"
+                >
+                  Listen now ↗
                 </a>
-              ))}
+
+
+                <span className="font-mono text-[7px] uppercase tracking-[0.2em] text-[#93836f]/50">
+                  playing after midnight
+                </span>
+
+              </div>
+
             </div>
 
-            <div className="mt-10 border-t border-paper/20 pt-5">
-              <p className="max-w-md text-sm leading-relaxed text-paper/50">
-                The latest release from no.holds barred.
-                Listen, explore the credits, and enter the archive.
-              </p>
+
+            <div>
+
+              <div className="mb-5 flex items-center justify-between border-b border-[#d4b779]/15 pb-4">
+
+                <span className="font-mono text-[8px] uppercase tracking-[0.22em] text-[#b49d79]/55">
+                  Card / tracklist
+                </span>
+
+                <span className="font-mono text-[8px] uppercase tracking-[0.22em] text-[#b49d79]/55">
+                  {latestRelease.tracklist.length} rounds
+                </span>
+
+              </div>
+
+
+              <div>
+
+                {latestRelease.tracklist.map(
+                  (track, index) => (
+
+                    <a
+                      key={track.id}
+                      href={track.audioUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="track-row-night group flex items-center justify-between gap-5 py-5"
+                    >
+
+                      <div className="flex min-w-0 items-center gap-5">
+
+                        <span className="font-mono text-[8px] text-[#8d755b]/55">
+                          {String(
+                            index + 1
+                          ).padStart(2, "0")}
+                        </span>
+
+                        <span className="promo-display truncate text-2xl md:text-4xl">
+                          {track.title}
+                        </span>
+
+                      </div>
+
+
+                      <span className="font-mono text-[7px] uppercase tracking-[0.16em] text-[#8e795f]/45 group-hover:text-[#d6b274]">
+                        Play ↗
+                      </span>
+
+                    </a>
+
+                  )
+                )}
+
+              </div>
+
+
+              <div className="mt-9 border border-[#c8a66d]/12 bg-black/20 p-5">
+
+                <p className="max-w-lg text-sm leading-relaxed text-[#aa9980]/60">
+                  Current transmission from the
+                  no.holds barred archive. Releases,
+                  demos, unfinished material and
+                  whatever is currently moving through
+                  the channel.
+                </p>
+
+              </div>
+
             </div>
+
           </div>
+
         </div>
+
       </section>
 
-      {/* FOOTER */}
-      <footer className="border-t border-ink/15 px-4 py-16 md:px-6 md:py-24">
-        <div className="flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="eyebrow text-muted-ink">
-              no.holds barred
-            </p>
 
-            <p className="mt-4 font-display text-5xl uppercase tracking-[-0.04em] md:text-8xl">
-              End transmission.
-            </p>
+      {/* =================================================
+          FOOTER
+          ================================================= */}
+
+      <footer className="night-footer px-4 py-20 md:px-7 md:py-28">
+
+        <div className="relative z-10 mx-auto max-w-7xl">
+
+          <div className="flex flex-col gap-16 md:flex-row md:items-end md:justify-between">
+
+            <div>
+
+              <p className="font-mono text-[8px] uppercase tracking-[0.28em] text-[#806f5b]/45">
+                no.holds barred / nhb 001
+              </p>
+
+              <p className="footer-big promo-display mt-5 text-[14vw] leading-[0.68] md:text-[8vw]">
+                End
+                <br />
+                transmission.
+              </p>
+
+            </div>
+
+
+            <div className="space-y-3 text-right font-mono text-[7px] uppercase tracking-[0.2em] text-[#82725e]/45">
+
+              <p>
+                music / video / people / archive
+              </p>
+
+              <p>
+                independent · worldwide
+              </p>
+
+              <Link
+                href="#"
+                className="inline-block border-b border-[#a79070]/25 pb-1 transition-colors hover:text-[#d7b470]"
+              >
+                Return to signal ↑
+              </Link>
+
+            </div>
+
           </div>
 
-          <div className="eyebrow text-muted-ink">
-            Independent · Worldwide · Est. 2024
-          </div>
         </div>
+
       </footer>
 
     </main>
