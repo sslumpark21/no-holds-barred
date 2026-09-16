@@ -241,27 +241,20 @@ export function BroadcastConsole() {
       !powerOn ||
       powerPhase !== "on" ||
       view === "HOME" ||
-      view === "AFFILIATE_INTRO"
+      view === "AFFILIATE_INTRO" ||
+      view === "AFFILIATE_DIRECTORY"
     ) return
 
     const inAffiliateSystem =
-      view === "AFFILIATE_DIRECTORY" ||
       view === "AFFILIATE_CHANNEL" ||
       ((view === "MUSIC" || view === "VIDEOS") &&
         signalSource === "affiliate")
 
     if (inAffiliateSystem) {
-      if (view === "AFFILIATE_DIRECTORY") {
-        setMenuIndex((current) =>
-          (current + direction + affiliateDirectory.length) %
-          affiliateDirectory.length
-        )
-      } else {
-        setAffiliateIndex((current) =>
-          ((current ?? 0) + direction + affiliateDirectory.length) %
-          affiliateDirectory.length
-        )
-      }
+      setAffiliateIndex((current) =>
+        ((current ?? 0) + direction + affiliateDirectory.length) %
+        affiliateDirectory.length
+      )
       triggerSignal(() => {})
       return
     }
@@ -610,7 +603,7 @@ export function BroadcastConsole() {
               TV
               ================================================= */}
 
-          <div className="relative">
+          <div className="relative min-w-0">
 
 
             {/* giant TV backlight */}
@@ -640,43 +633,11 @@ export function BroadcastConsole() {
             <div className="absolute -bottom-11 left-[5%] right-[5%] h-16 rounded-full bg-black/80 blur-2xl" />
 
 
-            {/* MAIN BODY */}
-
-            <div className="relative rounded-[22px] border-[3px] border-[#15130f] bg-gradient-to-br from-[#413d36] via-[#282621] to-[#171613] p-4 shadow-[0_30px_70px_rgba(0,0,0,.85)] md:p-5">
-
-              <div className="pointer-events-none absolute inset-[5px] rounded-[17px] border border-white/[0.055]" />
-
-
-              {/* top label */}
-
-              <div className="mb-3 flex justify-between px-2 font-mono text-[6px] uppercase tracking-[0.2em] text-[#a89f8e]/24">
-
-                <span>
-                  no.holds television
-                </span>
-
-                <span>
-                  NHB-TV 001
-                </span>
-
-              </div>
-
-
-              {/* front */}
-
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
-
-
-                {/* SCREEN HOUSING */}
-
-                <div className="relative rounded-[18px] border-[3px] border-[#12110e] bg-gradient-to-br from-[#69645a] via-[#403d36] to-[#25231f] p-3 shadow-[inset_0_2px_5px_rgba(255,255,255,.06),inset_0_-4px_8px_rgba(0,0,0,.55)]">
-
-                  <div className="relative rounded-[15px] border-[3px] border-[#716c61] bg-[#1b1a17] p-2">
-
-                    {/* SCREEN */}
+            {/* The shell image supplies the physical casing, speaker, controls, and feet. */}
+            <div className="relative aspect-[1254/830] w-full overflow-hidden drop-shadow-[0_30px_50px_rgba(0,0,0,0.85)]">
 
                     <div
-                      className={`relative aspect-[4/3] overflow-hidden rounded-[11%] border-[4px] border-black bg-black shadow-[inset_0_0_70px_rgba(0,0,0,1)] ${
+                      className={`absolute left-[8.5%] top-[10.2%] z-10 h-[72.8%] w-[64.2%] overflow-hidden rounded-[11%] bg-black shadow-[inset_0_0_70px_rgba(0,0,0,1)] ${
                         powerOn
                           ? "nhb-screen-flicker"
                           : ""
@@ -758,10 +719,10 @@ export function BroadcastConsole() {
                               </div>
                             </>
                           ) : view === "AFFILIATE_CHANNEL" ? (
-                            <div className="absolute inset-0 flex flex-col justify-between bg-[#09100c] p-5 text-[#ded3bc] md:p-8">
+                            <div className="absolute inset-0 flex flex-col justify-between bg-[#09100c] p-5 text-[#ded3bc] md:p-8" style={{ containerType: "inline-size" }}>
                               <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">AFFILIATE SIGNAL</span>
                               <div>
-                                <h3 className="font-display text-[8vw] leading-[0.76] tracking-[-0.055em] uppercase md:text-[4.6vw]">{affiliateName}</h3>
+                                <h3 className="max-w-full whitespace-nowrap font-display leading-[0.85] tracking-[-0.055em] uppercase" style={{ fontSize: (affiliateName?.length ?? 0) > 11 ? "clamp(0.9rem, 7.8cqw, 3rem)" : "clamp(1.3rem, 8.4cqw, 3.5rem)" }}>{affiliateName}</h3>
                                 <p className="mt-5 font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">TO BE ANNOUNCED</p>
                               </div>
                             </div>
@@ -800,146 +761,14 @@ export function BroadcastConsole() {
 
                     </div>
 
-                  </div>
-
-                </div>
-
-
-                {/* RIGHT CONTROL PANEL */}
-
-                <div className="flex flex-col gap-4 rounded-[12px] border border-black/40 bg-gradient-to-b from-[#302d27] to-[#181714] p-3">
-
-
-                  {/* speaker */}
-
-                  <div className="relative min-h-[180px] flex-1 overflow-hidden rounded-[5px] border border-black/50 bg-[#171410]">
-
-                    <div className="absolute inset-0 opacity-80 bg-[repeating-linear-gradient(0deg,#493a2e_0px,#493a2e_2px,#1a1511_2px,#1a1511_6px)]" />
-
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/25 via-transparent to-black/30" />
-
-                  </div>
-
-
-                  <div className="grid grid-cols-[38px_1fr] gap-3">
-
-
-                    {/* button stack */}
-
-                    <div className="flex flex-col justify-center gap-2">
-
-                      {[
-                        "PWR",
-                        "CH",
-                        "VOL",
-                        "AUX",
-                      ].map(
-                        (label) => (
-
-                          <div
-                            key={
-                              label
-                            }
-                            className="flex flex-col items-center gap-1"
-                          >
-
-                            <div className="h-5 w-5 rounded-full border border-black/60 bg-gradient-to-br from-[#77736a] to-[#2b2924]" />
-
-                            <span className="font-mono text-[4px] uppercase text-[#a89d8b]/25">
-                              {
-                                label
-                              }
-                            </span>
-
-                          </div>
-
-                        )
-                      )}
-
-                    </div>
-
-
-                    {/* dials */}
-
-                    <div className="flex flex-col items-center justify-center gap-4">
-
-                      <div className="relative h-[70px] w-[70px] rounded-full border-[3px] border-[#11100e] bg-[#090908] shadow-[inset_0_0_8px_black]">
-
-                        <div className="absolute inset-[8px] rounded-full border border-white/10 bg-[repeating-conic-gradient(from_0deg,#211f1b_0deg_8deg,#070706_8deg_14deg)]" />
-
-                        <div className="absolute left-1/2 top-1/2 h-[3px] w-[24px] origin-left -translate-y-1/2 rotate-[-45deg] bg-[#aaa493]/60" />
-
-                      </div>
-
-
-                      <div className="relative h-[64px] w-[64px] rounded-full border-[3px] border-[#11100e] bg-[#090908] shadow-[inset_0_0_8px_black]">
-
-                        <div className="absolute inset-[8px] rounded-full border border-white/10 bg-[repeating-conic-gradient(from_0deg,#211f1b_0deg_10deg,#070706_10deg_16deg)]" />
-
-                        <div className="absolute left-1/2 top-1/2 h-[3px] w-[21px] origin-left -translate-y-1/2 rotate-[25deg] bg-[#aaa493]/60" />
-
-                      </div>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-
-              {/* TV lower label */}
-
-              <div className="mt-4 flex items-center justify-between border-t border-black/40 px-2 pt-3 font-mono text-[6px] uppercase tracking-[0.18em] text-[#9f9687]/24">
-
-                <span>
-                  {view === "HOME"
-                    ? "HOME / START"
-                    : view === "AFFILIATE_INTRO"
-                      ? "AFFILIATE / START"
-                    : view === "AFFILIATE_DIRECTORY"
-                      ? "AFFILIATE DIRECTORY"
-                      : signalSource === "affiliate"
-                        ? "AFFILIATE SIGNAL"
-                        : `${channelLabel} / MEMBER`}
-                </span>
-
-
-                <div className="flex items-center gap-3">
-
-                  <span
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      powerOn
-                        ? "bg-[#9a2920] shadow-[0_0_7px_rgba(180,40,30,.55)]"
-                        : "bg-[#321512]"
-                    }`}
-                  />
-
-                  <span>
-                    vhf / uhf
-                  </span>
-
-                </div>
-
-              </div>
-
-            </div>
-
-
-            {/* plinth */}
-
-            <div className="relative mx-[-12px] h-8 rounded-b-[8px] border-x-2 border-b-2 border-[#14120f] bg-gradient-to-b from-[#322922] to-[#12100d] shadow-[0_8px_8px_rgba(0,0,0,.55)]" />
-
-
-            {/* feet */}
-
-            <div className="flex justify-between px-10">
-
-              <div className="h-3 w-20 rounded-b bg-[#0d0c0a]" />
-
-              <div className="h-3 w-20 rounded-b bg-[#0d0c0a]" />
-
+              <Image
+                src="/images/tv-shell.png"
+                alt=""
+                width={1254}
+                height={1254}
+                priority
+                className="pointer-events-none absolute left-0 top-[-24.7%] z-20 h-auto w-full select-none"
+              />
             </div>
 
           </div>
