@@ -4,37 +4,9 @@ import Image from "next/image"
 import Link from "next/link"
 import { useState } from "react"
 
-import { affiliates } from "@/lib/data"
+import { artists } from "@/lib/data"
 
-const labelMembers = [
-  {
-    name: "Danoot",
-    slug: "danoot",
-    role: "Label Member",
-    location: "no.holds.barred.",
-    hero:
-      affiliates[0]?.hero ||
-      "/placeholder.svg",
-  },
-  {
-    name: "MoxLi",
-    slug: "moxli",
-    role: "Label Member",
-    location: "no.holds.barred.",
-    hero:
-      affiliates[1]?.hero ||
-      "/placeholder.svg",
-  },
-  {
-    name: "Matei!",
-    slug: "matei",
-    role: "Label Member",
-    location: "no.holds.barred.",
-    hero:
-      affiliates[2]?.hero ||
-      "/placeholder.svg",
-  },
-]
+const labelMembers = artists
 
 const windowLayouts = [
   "md:col-span-7 md:h-[430px]",
@@ -258,7 +230,7 @@ export function ChannelWindows() {
                 return (
                   <Link
                     key={artist.slug}
-                    href="/artists"
+                    href={`/artists/${artist.slug}`}
                     onMouseEnter={() =>
                       setActiveChannel(
                         index

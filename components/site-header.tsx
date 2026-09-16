@@ -5,10 +5,6 @@ import { usePathname } from "next/navigation"
 
 const navigation = [
   {
-    label: "Artists",
-    href: "/artists",
-  },
-  {
     label: "Affiliates",
     href: "/affiliates",
   },

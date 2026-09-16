@@ -1,7 +1,6 @@
 "use client"
 
 import Image from "next/image"
-import Link from "next/link"
 import {
   useEffect,
   useRef,
@@ -9,75 +8,68 @@ import {
   type CSSProperties,
 } from "react"
 
-import { latestRelease } from "@/lib/data"
+import { artists } from "@/lib/data"
 
-type Mode = "MUSIC" | "VIDEO" | "ARCHIVE" | "INFO"
-
-const modes: Mode[] = [
-  "MUSIC",
-  "VIDEO",
-  "ARCHIVE",
-  "INFO",
+const lightByChannel = [
+  { glow: "rgba(159, 192, 151, 0.32)", edge: "rgba(202, 176, 98, 0.11)", haze: "rgba(128, 151, 103, 0.12)" },
+  { glow: "rgba(123, 170, 157, 0.34)", edge: "rgba(62, 87, 119, 0.13)", haze: "rgba(66, 102, 94, 0.13)" },
+  { glow: "rgba(203, 181, 111, 0.28)", edge: "rgba(140, 92, 50, 0.12)", haze: "rgba(161, 133, 77, 0.12)" },
 ]
 
-const lightByMode: Record<
-  Mode,
-  {
-    glow: string
-    edge: string
-    haze: string
-  }
-> = {
-  MUSIC: {
-    glow: "rgba(159, 192, 151, 0.32)",
-    edge: "rgba(202, 176, 98, 0.11)",
-    haze: "rgba(128, 151, 103, 0.12)",
-  },
+type View =
+  | "HOME"
+  | "MEMBER_CHANNEL"
+  | "MUSIC"
+  | "VIDEOS"
+  | "AFFILIATE_INTRO"
+  | "AFFILIATE_DIRECTORY"
+  | "AFFILIATE_CHANNEL"
 
-  VIDEO: {
-    glow: "rgba(123, 170, 157, 0.34)",
-    edge: "rgba(62, 87, 119, 0.13)",
-    haze: "rgba(66, 102, 94, 0.13)",
-  },
+type SignalSource = "member" | "affiliate"
+type PowerPhase = "on" | "starting" | "stopping" | "off"
 
-  ARCHIVE: {
-    glow: "rgba(203, 181, 111, 0.28)",
-    edge: "rgba(140, 92, 50, 0.12)",
-    haze: "rgba(161, 133, 77, 0.12)",
-  },
-
-  INFO: {
-    glow: "rgba(152, 76, 57, 0.27)",
-    edge: "rgba(100, 30, 25, 0.17)",
-    haze: "rgba(105, 49, 38, 0.12)",
-  },
-}
+const affiliateDirectory = [
+  "Andreas Shinso",
+  "Cyupercah",
+  "moise6969",
+  "2007",
+]
 
 export function BroadcastConsole() {
-  const tracks = latestRelease.tracklist
-
   const [powerOn, setPowerOn] = useState(true)
-  const [selectedTrack, setSelectedTrack] = useState(0)
+  const [powerPhase, setPowerPhase] = useState<PowerPhase>("on")
+  const [view, setView] = useState<View>("HOME")
+  const [selectedChannel, setSelectedChannel] = useState(0)
+  const [affiliateIndex, setAffiliateIndex] = useState<number | null>(null)
+  const [menuIndex, setMenuIndex] = useState(0)
+  const [signalSource, setSignalSource] = useState<SignalSource>("member")
+  const [transitioning, setTransitioning] = useState(false)
+  const [transitionId, setTransitionId] = useState(0)
+  const [signalActive, setSignalActive] = useState(false)
+  const [flashActive, setFlashActive] = useState(false)
+  const remoteRef = useRef<HTMLDivElement | null>(null)
+  const channelRef = useRef(0)
+  const transitionTimerRef = useRef<number | null>(null)
+  const powerTimerRef = useRef<number | null>(null)
 
-  const [selectedMode, setSelectedMode] =
-    useState<Mode>("MUSIC")
+  const member = artists[selectedChannel]
+  const light = lightByChannel[selectedChannel]
+  const affiliateName =
+    affiliateIndex === null ? null : affiliateDirectory[affiliateIndex]
+  const identity =
+    signalSource === "affiliate" && affiliateName ? affiliateName : member.name
+  const channelLabel = `CH ${String(selectedChannel + 1).padStart(2, "0")}`
 
-  const [screenMode, setScreenMode] =
-    useState<Mode>("MUSIC")
-
-  const [signalActive, setSignalActive] =
-    useState(false)
-
-  const [flashActive, setFlashActive] =
-    useState(false)
-
-  const remoteRef =
-    useRef<HTMLDivElement | null>(null)
-
-  const track = tracks[selectedTrack]
-
-  const light = lightByMode[screenMode]
-
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current !== null) {
+        window.clearTimeout(transitionTimerRef.current)
+      }
+      if (powerTimerRef.current !== null) {
+        window.clearTimeout(powerTimerRef.current)
+      }
+    }
+  }, [])
   useEffect(() => {
     const remote = remoteRef.current
 
@@ -198,57 +190,156 @@ export function BroadcastConsole() {
     }, 260)
   }
 
-  const previousChannel = () => {
-    triggerSignal(() => {
-      setSelectedTrack((current) =>
-        current === 0
-          ? tracks.length - 1
-          : current - 1
-      )
-    })
+  const clearTransition = () => {
+    if (transitionTimerRef.current !== null) {
+      window.clearTimeout(transitionTimerRef.current)
+      transitionTimerRef.current = null
+    }
+    setTransitioning(false)
   }
 
-  const nextChannel = () => {
-    triggerSignal(() => {
-      setSelectedTrack((current) =>
-        current === tracks.length - 1
-          ? 0
-          : current + 1
-      )
-    })
+  const clearPowerTimer = () => {
+    if (powerTimerRef.current !== null) {
+      window.clearTimeout(powerTimerRef.current)
+      powerTimerRef.current = null
+    }
   }
 
-  const moveMode = (
-    direction: number
-  ) => {
-    const current =
-      modes.indexOf(selectedMode)
+  const startPower = () => {
+    clearPowerTimer()
+    clearTransition()
+    setView("HOME")
+    setMenuIndex(0)
+    setPowerOn(true)
+    setPowerPhase("starting")
+    powerTimerRef.current = window.setTimeout(() => {
+      setPowerPhase("on")
+      powerTimerRef.current = null
+    }, 280)
+  }
+
+  const goHome = () => {
+    clearTransition()
+    if (powerPhase === "off" || powerPhase === "stopping") {
+      startPower()
+      return
+    }
+    setView("HOME")
+    setMenuIndex(0)
+  }
+
+  const play = () => {
+    clearTransition()
+    channelRef.current = 0
+    setSelectedChannel(0)
+    setSignalSource("member")
+    setView("MEMBER_CHANNEL")
+  }
+
+  const changeChannel = (direction: -1 | 1) => {
+    if (
+      !powerOn ||
+      powerPhase !== "on" ||
+      view === "HOME" ||
+      view === "AFFILIATE_INTRO"
+    ) return
+
+    const inAffiliateSystem =
+      view === "AFFILIATE_DIRECTORY" ||
+      view === "AFFILIATE_CHANNEL" ||
+      ((view === "MUSIC" || view === "VIDEOS") &&
+        signalSource === "affiliate")
+
+    if (inAffiliateSystem) {
+      if (view === "AFFILIATE_DIRECTORY") {
+        setMenuIndex((current) =>
+          (current + direction + affiliateDirectory.length) %
+          affiliateDirectory.length
+        )
+      } else {
+        setAffiliateIndex((current) =>
+          ((current ?? 0) + direction + affiliateDirectory.length) %
+          affiliateDirectory.length
+        )
+      }
+      triggerSignal(() => {})
+      return
+    }
 
     const next =
-      (current +
-        direction +
-        modes.length) %
-      modes.length
+      (channelRef.current + direction + artists.length) % artists.length
+    channelRef.current = next
+    setSelectedChannel(next)
+    setSignalSource("member")
+    if (view !== "MUSIC" && view !== "VIDEOS") {
+      setView("MEMBER_CHANNEL")
+    }
 
-    setSelectedMode(modes[next])
-
-    setSignalActive(true)
-
-    window.setTimeout(() => {
-      setSignalActive(false)
-    }, 120)
+    clearTransition()
+    setTransitionId((current) => current + 1)
+    setTransitioning(true)
+    triggerSignal(() => {})
+    transitionTimerRef.current = window.setTimeout(() => {
+      setTransitioning(false)
+      transitionTimerRef.current = null
+    }, 300)
   }
 
-  const selectMode = (
-    mode: Mode
-  ) => {
-    triggerSignal(() => {
-      setSelectedMode(mode)
-      setScreenMode(mode)
-      setPowerOn(true)
-    })
+  const navigateMenu = (direction: -1 | 1) => {
+    if (powerPhase !== "on" || transitioning) return
+    if (view === "AFFILIATE_DIRECTORY") {
+      setMenuIndex((current) =>
+        (current + direction + affiliateDirectory.length) %
+        affiliateDirectory.length
+      )
+    }
   }
 
+  const selectMenuItem = () => {
+    if (powerPhase !== "on" || transitioning) return
+    if (view === "HOME") {
+      play()
+    } else if (view === "AFFILIATE_INTRO") {
+      setMenuIndex(0)
+      setView("AFFILIATE_DIRECTORY")
+    } else if (view === "AFFILIATE_DIRECTORY") {
+      setAffiliateIndex(menuIndex)
+      setSignalSource("affiliate")
+      setView("AFFILIATE_CHANNEL")
+    }
+  }
+
+  const openSection = (section: "MUSIC" | "VIDEOS") => {
+    if (
+      powerPhase !== "on" ||
+      transitioning ||
+      view === "HOME" ||
+      view === "AFFILIATE_INTRO" ||
+      view === "AFFILIATE_DIRECTORY"
+    ) return
+    setView(section)
+  }
+
+  const openAffiliateIntro = () => {
+    if (powerPhase !== "on" || transitioning) return
+    clearTransition()
+    setView("AFFILIATE_INTRO")
+  }
+
+  const togglePower = () => {
+    clearTransition()
+    if (powerPhase === "off" || powerPhase === "stopping") {
+      startPower()
+      return
+    }
+    clearPowerTimer()
+    setPowerPhase("stopping")
+    powerTimerRef.current = window.setTimeout(() => {
+      setPowerOn(false)
+      setPowerPhase("off")
+      powerTimerRef.current = null
+    }, 260)
+  }
   const remoteStyle = {
     "--rx": "0deg",
     "--ry": "0deg",
@@ -310,6 +401,28 @@ export function BroadcastConsole() {
             50%  { transform: translateY(1px); }
             75%  { transform: translateY(-1px); }
             100% { transform: translateY(0); }
+          }
+
+          @keyframes nhbCrtPowerOn {
+            0% { transform: scale(.55, .012); filter: brightness(3); opacity: .85; }
+            45% { transform: scale(1, .035); filter: brightness(2); opacity: 1; }
+            100% { transform: scale(1, 1); filter: brightness(1); opacity: 1; }
+          }
+
+          @keyframes nhbCrtPowerOff {
+            0% { transform: scale(1, 1); filter: brightness(1); opacity: 1; }
+            65% { transform: scale(1, .025); filter: brightness(2); opacity: 1; }
+            100% { transform: scale(.18, .008); filter: brightness(3); opacity: 0; }
+          }
+
+          .nhb-crt-power-on {
+            transform-origin: center;
+            animation: nhbCrtPowerOn .28s ease-out both;
+          }
+
+          .nhb-crt-power-off {
+            transform-origin: center;
+            animation: nhbCrtPowerOff .26s ease-in both;
           }
 
           .nhb-ambient-flicker {
@@ -445,25 +558,6 @@ export function BroadcastConsole() {
 
 
       {/* =================================================
-          CHANNEL FLASH
-          ================================================= */}
-
-      <div
-        className={`pointer-events-none absolute inset-0 z-40 transition-opacity duration-200 ${
-          flashActive && powerOn
-            ? "opacity-100"
-            : "opacity-0"
-        }`}
-        style={{
-          background:
-            light.glow,
-          mixBlendMode:
-            "screen",
-        }}
-      />
-
-
-      {/* =================================================
           HEADER
           ================================================= */}
 
@@ -533,6 +627,13 @@ export function BroadcastConsole() {
               }}
             />
 
+            <div
+              className={`pointer-events-none absolute -inset-[16%] rounded-[35%] blur-[100px] transition-opacity duration-200 ${
+                flashActive && powerOn ? "opacity-[0.45]" : "opacity-0"
+              }`}
+              style={{ background: light.glow }}
+            />
+
 
             {/* TV floor shadow */}
 
@@ -585,299 +686,98 @@ export function BroadcastConsole() {
 
                       {/* POWER OFF */}
 
-                      {!powerOn && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-[#010201]">
-
-                          <div className="h-[2px] w-[55%] bg-white/12 blur-[1px]" />
-
-                        </div>
-                      )}
-
-
                       {/* POWER ON */}
 
                       {powerOn && (
-                        <>
-
-                          {/* MUSIC */}
-
-                          {screenMode ===
-                            "MUSIC" && (
-                            <div className="absolute inset-0">
-
-                              <Image
-                                src={
-                                  latestRelease.artwork ||
-                                  "/placeholder.svg"
-                                }
-                                alt=""
-                                fill
-                                sizes="900px"
-                                className="object-cover opacity-[0.78] brightness-[0.83] contrast-[1.1] saturate-[0.8]"
-                              />
-
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-black/20" />
-
-
-                              <div className="absolute inset-0 flex flex-col justify-between p-5 text-white md:p-8">
-
-                                <div className="flex justify-between font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">
-
-                                  <span>
-                                    CH{" "}
-                                    {String(
-                                      selectedTrack +
-                                        1
-                                    ).padStart(
-                                      2,
-                                      "0"
-                                    )}
-                                  </span>
-
-                                  <span>
-                                    MUSIC
-                                  </span>
-
-                                </div>
-
-
-                                <div>
-
-                                  <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/50">
-                                    {
-                                      latestRelease.artistName
-                                    }
-                                  </p>
-
-                                  <h3 className="mt-2 font-display text-[8vw] leading-[0.76] tracking-[-0.055em] uppercase md:text-[4.6vw]">
-                                    {
-                                      track.title
-                                    }
-                                  </h3>
-
-
-                                  <div className="mt-5 h-[2px] w-full bg-white/20">
-
-                                    <div className="h-full w-[38%] bg-white/75" />
-
-                                  </div>
-
-
-                                  <div className="mt-2 flex justify-between font-mono text-[7px] uppercase tracking-[0.15em] text-white/45">
-
-                                    <span>
-                                      PLAYING
-                                    </span>
-
-                                    <span>
-                                      {
-                                        track.duration
-                                      }
-                                    </span>
-
-                                  </div>
-
-                                </div>
-
-                              </div>
-
-                            </div>
-                          )}
-
-
-                          {/* VIDEO */}
-
-                          {screenMode ===
-                            "VIDEO" && (
-                            <div className="absolute inset-0 bg-[#09100c]">
-
-                              <Image
-                                src={
-                                  latestRelease.artwork ||
-                                  "/placeholder.svg"
-                                }
-                                alt=""
-                                fill
-                                sizes="900px"
-                                className="object-cover opacity-[0.32] grayscale brightness-[0.7]"
-                              />
-
-                              <div
-                                className="absolute inset-0"
+                        <div
+                          className={`pointer-events-none absolute inset-0 ${
+                            powerPhase === "starting"
+                              ? "nhb-crt-power-on"
+                              : powerPhase === "stopping"
+                                ? "nhb-crt-power-off"
+                                : ""
+                          }`}
+                        >
+                          {transitioning ? (
+                            <img
+                              key={transitionId}
+                              src={`/images/channel-switch.gif?switch=${transitionId}`}
+                              alt=""
+                              className="absolute inset-0 h-full w-full object-cover"
+                            />
+                          ) : view === "HOME" ? (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black">
+                              <p
+                                className="font-mono text-3xl font-black tracking-[0.16em] text-[#d94337] md:text-5xl"
                                 style={{
-                                  background:
-                                    "radial-gradient(circle at center, rgba(143,176,154,.14), rgba(0,0,0,.65))",
+                                  textShadow:
+                                    "0 0 3px rgba(255,80,65,.95), 0 0 16px rgba(217,48,38,.85), 0 0 38px rgba(170,25,20,.65)",
                                 }}
-                              />
-
-
-                              <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-[#d5dfd3]">
-
-                                <p className="font-mono text-[8px] uppercase tracking-[0.3em] text-white/40">
-                                  VIDEO INPUT
-                                </p>
-
-                                <p className="mt-4 font-display text-[10vw] leading-[0.8] uppercase md:text-[5.5vw]">
-                                  Video
-                                </p>
-
-                                <p className="mt-4 font-mono text-[8px] uppercase tracking-[0.2em] text-white/40">
-                                  waiting for
-                                  transmission
-                                </p>
-
-                              </div>
-
+                              >
+                                Press OK
+                              </p>
                             </div>
-                          )}
-
-
-                          {/* ARCHIVE */}
-
-                          {screenMode ===
-                            "ARCHIVE" && (
+                          ) : view === "AFFILIATE_INTRO" ? (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-black text-center">
+                              <p
+                                className="font-mono text-3xl font-black tracking-[0.16em] text-[#d94337] md:text-5xl"
+                                style={{
+                                  textShadow:
+                                    "0 0 3px rgba(255,80,65,.95), 0 0 16px rgba(217,48,38,.85), 0 0 38px rgba(170,25,20,.65)",
+                                }}
+                              >
+                                AFFILIATE
+                              </p>
+                              <p className="font-mono text-sm tracking-[0.16em] text-[#d94337] [text-shadow:0_0_12px_rgba(217,48,38,.7)] md:text-lg">
+                                Press OK
+                              </p>
+                            </div>
+                          ) : view === "AFFILIATE_DIRECTORY" ? (
                             <div className="absolute inset-0 overflow-y-auto bg-[#11100b] p-5 text-[#d4c49d] md:p-8">
-
-                              <div className="flex justify-between border-b border-[#cbb67f]/15 pb-4">
-
-                                <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-[#c0ae85]/45">
-                                  NHB ARCHIVE
-                                </span>
-
-                                <span className="font-mono text-[8px] text-[#c0ae85]/35">
-                                  001
-                                </span>
-
+                              <p className="border-b border-[#cbb67f]/20 pb-4 font-mono text-[8px] uppercase tracking-[0.2em]">
+                                AFFILIATE
+                              </p>
+                              <div className="mt-4">
+                                {affiliateDirectory.map((name, index) => (
+                                  <div
+                                    key={name}
+                                    className={`block w-full border-b border-[#d2ba81]/15 py-3 text-left font-display text-lg uppercase md:text-2xl ${menuIndex === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}
+                                  >
+                                    {name}
+                                  </div>
+                                ))}
                               </div>
-
-
-                              <div className="mt-6">
-
-                                {tracks
-                                  .slice(0, 6)
-                                  .map(
-                                    (
-                                      item,
-                                      index
-                                    ) => (
-
-                                      <button
-                                        key={
-                                          item.id
-                                        }
-                                        type="button"
-                                        onClick={() =>
-                                          triggerSignal(
-                                            () => {
-                                              setSelectedTrack(
-                                                index
-                                              )
-
-                                              setScreenMode(
-                                                "MUSIC"
-                                              )
-
-                                              setSelectedMode(
-                                                "MUSIC"
-                                              )
-                                            }
-                                          )
-                                        }
-                                        className="group flex w-full items-center justify-between border-b border-[#d2ba81]/10 py-3 text-left"
-                                      >
-
-                                        <div className="flex items-center gap-4">
-
-                                          <span className="font-mono text-[8px] text-[#a98d5f]/40">
-                                            {String(
-                                              index +
-                                                1
-                                            ).padStart(
-                                              2,
-                                              "0"
-                                            )}
-                                          </span>
-
-                                          <span className="font-display text-lg uppercase transition-transform group-hover:translate-x-2 md:text-2xl">
-                                            {
-                                              item.title
-                                            }
-                                          </span>
-
-                                        </div>
-
-
-                                        <span className="font-mono text-[7px] text-[#aa9268]/35">
-                                          {
-                                            item.duration
-                                          }
-                                        </span>
-
-                                      </button>
-
-                                    )
-                                  )}
-
-                              </div>
-
                             </div>
-                          )}
-
-
-                          {/* INFO */}
-
-                          {screenMode ===
-                            "INFO" && (
-                            <div className="absolute inset-0 flex flex-col justify-between bg-[#150b08] p-5 text-[#dac7b0] md:p-8">
-
+                          ) : view === "MEMBER_CHANNEL" ? (
+                            <>
+                              <Image src={member.hero || "/placeholder.svg"} alt={member.name} fill sizes="900px" className="object-cover opacity-[0.78] brightness-[0.83] contrast-[1.1] saturate-[0.8]" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-black/20" />
+                              <div className="absolute inset-0 flex flex-col justify-between p-5 text-white md:p-8">
+                                <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">{channelLabel}</span>
+                                <h3 className="font-display text-[8vw] leading-[0.76] tracking-[-0.055em] uppercase md:text-[4.6vw]">{member.name}</h3>
+                              </div>
+                            </>
+                          ) : view === "AFFILIATE_CHANNEL" ? (
+                            <div className="absolute inset-0 flex flex-col justify-between bg-[#09100c] p-5 text-[#ded3bc] md:p-8">
+                              <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">AFFILIATE SIGNAL</span>
                               <div>
-
-                                <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-[#d1a494]/40">
-                                  Channel
-                                  information
-                                </p>
-
-                                <p className="mt-5 font-display text-[8vw] leading-[0.8] tracking-[-0.05em] uppercase md:text-[4.5vw]">
-                                  {
-                                    latestRelease.artistName
-                                  }
-                                </p>
-
+                                <h3 className="font-display text-[8vw] leading-[0.76] tracking-[-0.055em] uppercase md:text-[4.6vw]">{affiliateName}</h3>
+                                <p className="mt-5 font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">TO BE ANNOUNCED</p>
                               </div>
-
-
-                              <div className="border-t border-[#d5a28c]/15 pt-5">
-
-                                <p className="max-w-lg text-sm leading-relaxed text-[#c0a897]/55">
-                                  Currently
-                                  transmitting{" "}
-                                  {
-                                    latestRelease.title
-                                  }
-                                  . Music,
-                                  visual work,
-                                  releases and
-                                  ongoing material.
-                                </p>
-
-
-                                <Link
-                                  href={`/releases/${latestRelease.slug}`}
-                                  className="mt-5 inline-block border-b border-[#d4a28e]/25 pb-1 font-mono text-[8px] uppercase tracking-[0.2em]"
-                                >
-                                  Enter channel
-                                  ↗
-                                </Link>
-
+                            </div>
+                          ) : (
+                            <div className="absolute inset-0 flex flex-col justify-between bg-[#09100c] p-5 text-[#ded3bc] md:p-8">
+                              <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">
+                                {signalSource === "member" ? channelLabel : "AFFILIATE SIGNAL"} / {identity}
+                              </span>
+                              <div>
+                                <h3 className="font-display text-[8vw] leading-[0.76] tracking-[-0.055em] uppercase md:text-[4.6vw]">{view}</h3>
+                                <p className="mt-5 font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">TO BE ANNOUNCED</p>
                               </div>
-
                             </div>
                           )}
-
-                        </>
+                        </div>
                       )}
-
-
                       {/* curved CRT shadow */}
 
                       <div className="pointer-events-none absolute inset-0 rounded-[11%] bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(0,0,0,.5)_100%)]" />
@@ -885,34 +785,18 @@ export function BroadcastConsole() {
 
                       {/* scanlines */}
 
-                      <div className="pointer-events-none absolute inset-0 opacity-[0.15] bg-[repeating-linear-gradient(0deg,rgba(255,255,255,.1)_0px,rgba(255,255,255,.1)_1px,transparent_1px,transparent_4px)]" />
+                      <div className={`pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(0deg,rgba(255,255,255,.1)_0px,rgba(255,255,255,.1)_1px,transparent_1px,transparent_4px)] ${powerOn ? "opacity-[0.15]" : "opacity-0"}`} />
 
 
                       {/* screen reflection */}
 
-                      <div className="pointer-events-none absolute left-[7%] top-[4%] h-[27%] w-[53%] rotate-[-8deg] rounded-[50%] bg-white/[0.05] blur-xl" />
+                      <div className={`pointer-events-none absolute left-[7%] top-[4%] h-[27%] w-[53%] rotate-[-8deg] rounded-[50%] bg-white/[0.05] blur-xl ${powerOn ? "" : "opacity-0"}`} />
 
 
                       {/* static texture */}
 
-                      <div className="nhb-static pointer-events-none absolute inset-0 opacity-[0.035] bg-[repeating-radial-gradient(circle_at_center,#fff_0px,transparent_1px,transparent_3px)]" />
+                      <div className={`nhb-static pointer-events-none absolute inset-0 bg-[repeating-radial-gradient(circle_at_center,#fff_0px,transparent_1px,transparent_3px)] ${powerOn ? "opacity-[0.035]" : "opacity-0"}`} />
 
-
-                      {/* channel flash */}
-
-                      <div
-                        className={`pointer-events-none absolute inset-0 transition-opacity duration-150 ${
-                          flashActive
-                            ? "opacity-100"
-                            : "opacity-0"
-                        }`}
-                        style={{
-                          background:
-                            light.glow,
-                          mixBlendMode:
-                            "screen",
-                        }}
-                      />
 
                     </div>
 
@@ -1010,12 +894,15 @@ export function BroadcastConsole() {
               <div className="mt-4 flex items-center justify-between border-t border-black/40 px-2 pt-3 font-mono text-[6px] uppercase tracking-[0.18em] text-[#9f9687]/24">
 
                 <span>
-                  CH{" "}
-                  {String(
-                    selectedTrack + 1
-                  ).padStart(2, "0")}
-                  {" / "}
-                  {screenMode}
+                  {view === "HOME"
+                    ? "HOME / START"
+                    : view === "AFFILIATE_INTRO"
+                      ? "AFFILIATE / START"
+                    : view === "AFFILIATE_DIRECTORY"
+                      ? "AFFILIATE DIRECTORY"
+                      : signalSource === "affiliate"
+                        ? "AFFILIATE SIGNAL"
+                        : `${channelLabel} / MEMBER`}
                 </span>
 
 
@@ -1147,19 +1034,22 @@ export function BroadcastConsole() {
                       <div className="mt-2 flex items-end justify-between">
 
                         <span className="font-mono text-[32px] leading-none text-white/80">
-                          {String(
-                            selectedTrack +
-                              1
-                          ).padStart(
-                            2,
-                            "0"
-                          )}
+                          {view === "HOME"
+                            ? "H"
+                            : view === "AFFILIATE_INTRO" ||
+                                view === "AFFILIATE_DIRECTORY" ||
+                                signalSource === "affiliate"
+                              ? "A"
+                              : String(selectedChannel + 1).padStart(2, "0")}
                         </span>
 
                         <span className="font-mono text-[11px] uppercase text-white/50">
-                          {
-                            selectedMode
-                          }
+                          {view === "HOME"
+                            ? "START"
+                            : view === "AFFILIATE_INTRO" ||
+                                view === "AFFILIATE_DIRECTORY"
+                              ? "AFFILIATE"
+                              : identity}
                         </span>
 
                       </div>
@@ -1175,23 +1065,7 @@ export function BroadcastConsole() {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        triggerSignal(
-                          () => {
-                            setSelectedMode(
-                              "MUSIC"
-                            )
-
-                            setScreenMode(
-                              "MUSIC"
-                            )
-
-                            setPowerOn(
-                              true
-                            )
-                          }
-                        )
-                      }
+                      onClick={goHome}
                       className="remote-black-button"
                     >
                       HOME
@@ -1200,17 +1074,7 @@ export function BroadcastConsole() {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        triggerSignal(
-                          () =>
-                            setPowerOn(
-                              (
-                                current
-                              ) =>
-                                !current
-                            )
-                        )
-                      }
+                      onClick={togglePower}
                       className="remote-black-button"
                     >
                       POWER
@@ -1231,9 +1095,7 @@ export function BroadcastConsole() {
 
                       <button
                         type="button"
-                        onClick={
-                          previousChannel
-                        }
+                        onClick={() => changeChannel(1)}
                         className="remote-direction-button"
                       >
                         ▲
@@ -1242,9 +1104,7 @@ export function BroadcastConsole() {
 
                       <button
                         type="button"
-                        onClick={
-                          nextChannel
-                        }
+                        onClick={() => changeChannel(-1)}
                         className="remote-direction-button"
                       >
                         ▼
@@ -1256,115 +1116,26 @@ export function BroadcastConsole() {
 
 
                   {/* dpad */}
-
                   <div className="mt-4 flex justify-center">
-
                     <div className="relative h-[115px] w-[115px] rounded-full border-2 border-black bg-[#101010] shadow-[inset_0_5px_10px_rgba(0,0,0,.85)]">
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          moveMode(-1)
-                        }
-                        className="absolute left-1/2 top-3 -translate-x-1/2 font-mono text-[13px] text-white/45 hover:text-white"
-                      >
-                        ▲
+                      <button type="button" onClick={() => navigateMenu(-1)} className="absolute left-1/2 top-3 -translate-x-1/2 font-mono text-[13px] text-white/45 hover:text-white">▲</button>
+                      <button type="button" onClick={() => navigateMenu(1)} className="absolute bottom-3 left-1/2 -translate-x-1/2 font-mono text-[13px] text-white/45 hover:text-white">▼</button>
+                      <button type="button" className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-[13px] text-white/45 hover:text-white">◀</button>
+                      <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[13px] text-white/45 hover:text-white">▶</button>
+                      <button type="button" onClick={selectMenuItem} className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-black bg-[#282828]">
+                        <span className="font-mono text-[9px] font-bold tracking-[0.15em] text-white/55">OK</span>
                       </button>
-
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          moveMode(1)
-                        }
-                        className="absolute bottom-3 left-1/2 -translate-x-1/2 font-mono text-[13px] text-white/45 hover:text-white"
-                      >
-                        ▼
-                      </button>
-
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          moveMode(-1)
-                        }
-                        className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-[13px] text-white/45 hover:text-white"
-                      >
-                        ◀
-                      </button>
-
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          moveMode(1)
-                        }
-                        className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[13px] text-white/45 hover:text-white"
-                      >
-                        ▶
-                      </button>
-
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          selectMode(
-                            selectedMode
-                          )
-                        }
-                        className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-black bg-[#282828]"
-                      >
-                        <span className="font-mono text-[9px] font-bold tracking-[0.15em] text-white/55">
-                          OK
-                        </span>
-                      </button>
-
                     </div>
-
                   </div>
-
-
                   {/* destinations */}
-
                   <div className="mt-4">
-
-                    <p className="mb-2 font-mono text-[7px] uppercase tracking-[0.18em] text-white/22">
-                      Destination
-                    </p>
-
-                    <div className="grid grid-cols-4 gap-2">
-
-                      {modes.map(
-                        (mode) => (
-
-                          <button
-                            key={
-                              mode
-                            }
-                            type="button"
-                            onClick={() =>
-                              selectMode(
-                                mode
-                              )
-                            }
-                            className={`remote-destination-button ${
-                              selectedMode ===
-                              mode
-                                ? "remote-destination-active"
-                                : ""
-                            }`}
-                          >
-                            {mode}
-                          </button>
-
-                        )
-                      )}
-
+                    <p className="mb-2 font-mono text-[7px] uppercase tracking-[0.18em] text-white/22">Destination</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button type="button" onClick={() => openSection("MUSIC")} className={`remote-destination-button ${view === "MUSIC" ? "remote-destination-active" : ""}`}>MUSIC</button>
+                      <button type="button" onClick={() => openSection("VIDEOS")} className={`remote-destination-button ${view === "VIDEOS" ? "remote-destination-active" : ""}`}>VIDEOS</button>
+                      <button type="button" onClick={openAffiliateIntro} className={`remote-destination-button ${view === "AFFILIATE_INTRO" || view === "AFFILIATE_DIRECTORY" || view === "AFFILIATE_CHANNEL" ? "remote-destination-active" : ""}`}>AFFILIATE</button>
                     </div>
-
                   </div>
-
-
                   <div className="mt-5 flex justify-between border-t border-white/[0.07] pt-3 font-mono text-[6px] uppercase tracking-[0.15em] text-white/17">
 
                     <span>
@@ -1391,26 +1162,20 @@ export function BroadcastConsole() {
 
 
       {/* status */}
-
       <div className="relative z-10 mx-auto mt-20 flex max-w-7xl justify-between border-t border-[#a7a08c]/10 pt-5 font-mono text-[8px] uppercase tracking-[0.2em] text-[#a7a08c]/30">
-
         <span>
-          CH{" "}
-          {String(
-            selectedTrack + 1
-          ).padStart(2, "0")}
-          {" / "}
-          {track.title}
+          {view === "HOME"
+            ? "HOME / START"
+            : view === "AFFILIATE_INTRO"
+              ? "AFFILIATE / START"
+            : view === "AFFILIATE_DIRECTORY"
+              ? "AFFILIATE DIRECTORY"
+              : signalSource === "affiliate"
+                ? `AFFILIATE / ${identity}`
+                : `${channelLabel} / ${member.name}`}
         </span>
-
-        <span>
-          {powerOn
-            ? `${screenMode} transmission`
-            : "transmission ended"}
-        </span>
-
+        <span>{powerOn ? "signal detected" : "transmission ended"}</span>
       </div>
-
     </section>
   )
 }

@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import {
   useEffect,
   useRef,
@@ -396,72 +395,18 @@ export default function HomePage() {
             </div>
 
             <div className="md:min-w-[320px]">
-
               <p className="nhb-small-readable mb-6 font-mono text-[8px] font-bold uppercase tracking-[0.24em] text-[#c1af91]/80">
-                Find the signal
+                CONTACT
               </p>
-
-              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-
-                <a
-                  href="#"
-                  className="nhb-small-readable border-b border-[#af966c]/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#d8c7ab]/85 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
-                >
-                  Instagram ↗
-                </a>
-
-                <a
-                  href="#"
-                  className="nhb-small-readable border-b border-[#af966c]/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#d8c7ab]/85 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
-                >
-                  YouTube ↗
-                </a>
-
-                <a
-                  href="#"
-                  className="nhb-small-readable border-b border-[#af966c]/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#d8c7ab]/85 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
-                >
-                  Bandcamp ↗
-                </a>
-
-                <a
-                  href="#"
-                  className="nhb-small-readable border-b border-[#af966c]/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#d8c7ab]/85 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
-                >
-                  SoundCloud ↗
-                </a>
-
-                <a
-                  href="#"
-                  className="nhb-small-readable border-b border-[#af966c]/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#d8c7ab]/85 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
-                >
-                  Spotify ↗
-                </a>
-
-                <a
-                  href="#"
-                  className="nhb-small-readable border-b border-[#af966c]/25 pb-2 font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#d8c7ab]/85 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
-                >
-                  Apple Music ↗
-                </a>
-
-              </div>
-
-              <div className="mt-10 flex items-center justify-between border-t border-[#bca274]/15 pt-5">
-
-                <span className="nhb-small-readable font-mono text-[7px] font-bold uppercase tracking-[0.18em] text-[#b5a48a]/75">
-                  independent · worldwide
-                </span>
-
-                <Link
-                  href="#top"
-                  className="nhb-small-readable font-mono text-[8px] font-bold uppercase tracking-[0.18em] text-[#d2bd99]/85 hover:text-[#e3c581]"
-                >
-                  Top ↑
-                </Link>
-
-              </div>
-
+              <a
+                href="mailto:sslum.park@gmail.com"
+                className="nhb-small-readable border-b border-[#af966c]/25 pb-2 font-mono text-[9px] font-bold tracking-[0.17em] text-[#d8c7ab]/85 transition-colors hover:border-[#d3ae6a]/60 hover:text-[#efd7a6]"
+              >
+                sslum.park@gmail.com
+              </a>
+              <p className="nhb-small-readable mt-6 font-mono text-[9px] tracking-[0.17em] text-[#d8c7ab]/85">
+                Business and breesh.
+              </p>
             </div>
 
           </div>
