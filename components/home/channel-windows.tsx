@@ -8,6 +8,10 @@ import { artists } from "@/lib/data"
 
 const labelMembers = artists
 
+const memberWindowImages: Record<string, string> = {
+  matei: "/images/matei-member.jpg",
+}
+
 const windowLayouts = [
   "md:col-span-7 md:h-[430px]",
   "md:col-span-5 md:h-[345px] md:mt-24",
@@ -269,7 +273,7 @@ export function ChannelWindows() {
                       <div className="absolute inset-[7px] overflow-hidden border border-[#3a3125] bg-black">
 
                         <Image
-                          src={artist.hero}
+                          src={memberWindowImages[artist.slug] ?? artist.hero}
                           alt={artist.name}
                           fill
                           sizes="(max-width: 768px) 100vw, 65vw"

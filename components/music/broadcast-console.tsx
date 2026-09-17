@@ -711,7 +711,6 @@ export function BroadcastConsole() {
                             </div>
                           ) : view === "MEMBER_CHANNEL" ? (
                             <>
-                              <Image src={member.hero || "/placeholder.svg"} alt={member.name} fill sizes="900px" className="object-cover opacity-[0.78] brightness-[0.83] contrast-[1.1] saturate-[0.8]" />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-black/20" />
                               <div className="absolute inset-0 flex flex-col justify-between p-5 text-white md:p-8">
                                 <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">{channelLabel}</span>

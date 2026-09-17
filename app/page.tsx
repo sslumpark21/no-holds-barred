@@ -1,5 +1,7 @@
 "use client"
 
+import Image from "next/image"
+
 import {
   useEffect,
   useRef,
@@ -117,18 +119,6 @@ export default function HomePage() {
               0 0 8px rgba(0,0,0,.85);
           }
 
-          @keyframes nhbCagePulse {
-            0%, 100% {
-              opacity: .56;
-              filter: brightness(.88);
-            }
-
-            50% {
-              opacity: .68;
-              filter: brightness(1.05);
-            }
-          }
-
           @keyframes nhbRoomGlow {
             0%, 100% {
               opacity: .48;
@@ -139,32 +129,6 @@ export default function HomePage() {
             }
           }
 
-          @keyframes nhbCageNoise {
-            0% {
-              transform: translateY(0);
-            }
-
-            33% {
-              transform: translateY(-1px);
-            }
-
-            66% {
-              transform: translateY(1px);
-            }
-
-            100% {
-              transform: translateY(0);
-            }
-          }
-
-          .nhb-cage-pulse {
-            animation:
-              nhbCagePulse
-              5.5s
-              ease-in-out
-              infinite;
-          }
-
           .nhb-room-glow {
             animation:
               nhbRoomGlow
@@ -173,13 +137,6 @@ export default function HomePage() {
               infinite;
           }
 
-          .nhb-cage-noise {
-            animation:
-              nhbCageNoise
-              .35s
-              steps(2,end)
-              infinite;
-          }
         `}
       </style>
 
@@ -188,7 +145,7 @@ export default function HomePage() {
       <section
         ref={heroRef}
         style={heroStyle}
-        className="relative h-[76vh] min-h-[560px] overflow-hidden bg-[#040504]"
+        className="relative h-[76vh] min-h-[560px] overflow-hidden border-b border-[#d5bb8a]/10 bg-[#040504]"
       >
 
         <div
@@ -224,80 +181,23 @@ export default function HomePage() {
         />
 
         <div
-          className="pointer-events-none absolute inset-[-15%] opacity-[0.42]"
+          className="pointer-events-none"
           style={{
+            position: "absolute",
+            inset: "-14px",
             transform:
-              "translate3d(calc(var(--mx) * -6px), calc(var(--my) * -4px), 0) scale(1.08)",
-
-            backgroundImage: `
-              repeating-linear-gradient(
-                45deg,
-                transparent 0px,
-                transparent 34px,
-                rgba(0,0,0,.8) 34px,
-                rgba(0,0,0,.8) 39px,
-                transparent 39px,
-                transparent 72px
-              ),
-              repeating-linear-gradient(
-                -45deg,
-                transparent 0px,
-                transparent 34px,
-                rgba(0,0,0,.8) 34px,
-                rgba(0,0,0,.8) 39px,
-                transparent 39px,
-                transparent 72px
-              )
-            `,
+              "translate3d(calc(var(--mx) * -10px), calc(var(--my) * -6px), 0)",
           }}
-        />
-
-        <div
-          className="nhb-cage-pulse pointer-events-none absolute inset-[-15%]"
-          style={{
-            transform:
-              "translate3d(calc(var(--mx) * -12px), calc(var(--my) * -7px), 0) scale(1.08)",
-
-            backgroundImage: `
-              repeating-linear-gradient(
-                45deg,
-                transparent 0px,
-                transparent 33px,
-                rgba(136, 136, 125, .8) 33px,
-                rgba(202, 198, 180, .72) 35px,
-                rgba(72, 72, 67, .88) 38px,
-                transparent 40px,
-                transparent 72px
-              ),
-              repeating-linear-gradient(
-                -45deg,
-                transparent 0px,
-                transparent 33px,
-                rgba(129, 129, 119, .78) 33px,
-                rgba(199, 195, 178, .7) 35px,
-                rgba(67, 68, 63, .9) 38px,
-                transparent 40px,
-                transparent 72px
-              )
-            `,
-
-            filter:
-              "drop-shadow(0 4px 3px rgba(0,0,0,.9))",
-          }}
-        />
-
-        <div
-          className="pointer-events-none absolute inset-[-10%] opacity-[0.18]"
-          style={{
-            transform:
-              "translate3d(calc(var(--mx) * -14px), calc(var(--my) * -8px), 0)",
-
-            background:
-              "linear-gradient(115deg, transparent 20%, rgba(215,220,190,.28) 46%, transparent 63%)",
-          }}
-        />
-
-        <div className="nhb-cage-noise pointer-events-none absolute inset-0 opacity-[0.09] bg-[repeating-linear-gradient(0deg,rgba(255,255,255,.08)_0px,rgba(255,255,255,.08)_1px,transparent_1px,transparent_5px)]" />
+        >
+          <Image
+            src="/images/hero-cage.png"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover object-center"
+          />
+        </div>
 
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,rgba(0,0,0,.32)_60%,rgba(0,0,0,.88)_100%)]" />
 
@@ -311,25 +211,7 @@ export default function HomePage() {
 
         <div className="relative z-10 flex h-full flex-col justify-between px-4 py-7 md:px-7 md:py-9">
 
-          <div className="flex items-start justify-between gap-6">
-
-            <div className="flex items-center gap-3 border border-[#d1b986]/25 bg-black/65 px-3 py-2">
-
-              <span className="h-2 w-2 rounded-full bg-[#ad3429] shadow-[0_0_10px_rgba(200,50,40,.9)]" />
-
-              <span className="nhb-small-readable font-mono text-[8px] font-bold uppercase tracking-[0.22em] text-[#eadcc1]/90">
-                Live after midnight
-              </span>
-
-            </div>
-
-            <div className="nhb-small-readable hidden bg-black/30 px-2 py-1 text-right font-mono text-[8px] font-bold uppercase leading-relaxed tracking-[0.2em] text-[#ded0b5]/80 sm:block">
-              NHB / 001
-              <br />
-              Independent transmission
-            </div>
-
-          </div>
+          <div className="h-[34px]" aria-hidden="true" />
 
           <div
             className="transition-transform duration-500 ease-out"

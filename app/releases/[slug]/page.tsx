@@ -4,7 +4,6 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getArtist, getRelease, releases } from "@/lib/data"
 import { Tracklist } from "@/components/tracklist"
-import { PlayButton } from "@/components/audio/play-button"
 import { ReleaseCard } from "@/components/release-card"
 
 export function generateStaticParams() {
@@ -52,25 +51,13 @@ export default async function ReleasePage({ params }: { params: Promise<{ slug: 
               {p}
             </p>
           ))}
-          <div className="mt-8">
-            <PlayButton
-              label
-              track={{
-                id: release.tracklist[0].id,
-                title: release.tracklist[0].title,
-                artist: release.artistName,
-                artwork: release.artwork,
-                audioUrl: release.tracklist[0].audioUrl,
-              }}
-            />
-          </div>
         </div>
       </section>
 
       <section className="px-4 md:px-6 py-12 md:py-16 border-t border-line">
         <h2 className="eyebrow text-muted-ink mb-8">Tracklist</h2>
         <div className="max-w-3xl">
-          <Tracklist tracks={release.tracklist} artist={release.artistName} artwork={release.artwork} />
+          <Tracklist tracks={release.tracklist} />
         </div>
       </section>
 
