@@ -8,7 +8,8 @@ import {
   type CSSProperties,
 } from "react"
 
-import { artists } from "@/lib/data"
+import { artists, releases } from "@/lib/data"
+import { useAudio } from "@/components/audio/audio-provider"
 
 const lightByChannel = [
   { glow: "rgba(159, 192, 151, 0.32)", edge: "rgba(202, 176, 98, 0.11)", haze: "rgba(128, 151, 103, 0.12)" },
@@ -18,24 +19,55 @@ const lightByChannel = [
 
 type View =
   | "HOME"
-  | "MEMBER_CHANNEL"
-  | "MUSIC"
-  | "VIDEOS"
+  | "CHANNEL_MENU"
+  | "SONGS_MENU"
+  | "ALBUMS_EPS"
+  | "SINGLES"
+  | "EXCLUSIVE_PREVIEW"
+  | "VIDEOS_MENU"
+  | "VIDEO_PLAYER"
   | "AFFILIATE_INTRO"
   | "AFFILIATE_DIRECTORY"
-  | "AFFILIATE_CHANNEL"
 
 type SignalSource = "member" | "affiliate"
 type PowerPhase = "on" | "starting" | "stopping" | "off"
 
 const affiliateDirectory = [
-  "Andreas Shinso",
-  "Cyupercah",
-  "moise6969",
-  "2007",
+  { id: "andreas-shinso", name: "Andreas Shinso" },
+  { id: "cyupercah", name: "Cyupercah" },
+  { id: "moise6969", name: "moise6969" },
+  { id: "2007", name: "2007" },
 ]
 
+type ChannelMedia = {
+  albumsEps: string[]
+  singles: string[]
+  exclusivePreview: string[]
+  videos: { title: string; url: string }[]
+}
+
+type CurrentChannel = {
+  kind: SignalSource
+  id: string
+  name: string
+  label: string
+  media: ChannelMedia
+}
+
+const emptyMedia: ChannelMedia = {
+  albumsEps: [],
+  singles: [],
+  exclusivePreview: [],
+  videos: [],
+}
+
+const affiliateMedia: Record<string, ChannelMedia> = {}
+
+const VOLUME_KNOB_SIZE = 44
+const VOLUME_KNOB_INSET = VOLUME_KNOB_SIZE / 2
+
 export function BroadcastConsole() {
+  const { volume, setVolume } = useAudio()
   const [powerOn, setPowerOn] = useState(true)
   const [powerPhase, setPowerPhase] = useState<PowerPhase>("on")
   const [view, setView] = useState<View>("HOME")
@@ -51,14 +83,22 @@ export function BroadcastConsole() {
   const channelRef = useRef(0)
   const transitionTimerRef = useRef<number | null>(null)
   const powerTimerRef = useRef<number | null>(null)
+  const volumeBarRef = useRef<HTMLDivElement | null>(null)
 
   const member = artists[selectedChannel]
   const light = lightByChannel[selectedChannel]
-  const affiliateName =
-    affiliateIndex === null ? null : affiliateDirectory[affiliateIndex]
-  const identity =
-    signalSource === "affiliate" && affiliateName ? affiliateName : member.name
-  const channelLabel = `CH ${String(selectedChannel + 1).padStart(2, "0")}`
+  const affiliate = affiliateIndex === null ? null : affiliateDirectory[affiliateIndex]
+  const officialMedia: ChannelMedia = {
+    albumsEps: member.releaseSlugs.map((slug) => releases.find((release) => release.slug === slug)).filter((release) => release?.type === "Album" || release?.type === "EP").map((release) => release!.title),
+    singles: member.releaseSlugs.map((slug) => releases.find((release) => release.slug === slug)).filter((release) => release?.type === "Single").map((release) => release!.title),
+    exclusivePreview: member.unreleased.map((track) => track.title),
+    videos: member.videos.map((video) => ({ title: video.title, url: video.id })),
+  }
+  const currentChannel: CurrentChannel = signalSource === "affiliate" && affiliate
+    ? { kind: "affiliate", id: affiliate.id, name: affiliate.name, label: `AFF ${String((affiliateIndex ?? 0) + 1).padStart(2, "0")}`, media: affiliateMedia[affiliate.id] ?? emptyMedia }
+    : { kind: "member", id: member.slug, name: member.name, label: `CH ${String(selectedChannel + 1).padStart(2, "0")}`, media: officialMedia }
+  const identity = currentChannel.name
+  const channelLabel = currentChannel.label
 
   useEffect(() => {
     return () => {
@@ -233,7 +273,8 @@ export function BroadcastConsole() {
     channelRef.current = 0
     setSelectedChannel(0)
     setSignalSource("member")
-    setView("MEMBER_CHANNEL")
+    setMenuIndex(0)
+    setView("CHANNEL_MENU")
   }
 
   const changeChannel = (direction: -1 | 1) => {
@@ -245,16 +286,15 @@ export function BroadcastConsole() {
       view === "AFFILIATE_DIRECTORY"
     ) return
 
-    const inAffiliateSystem =
-      view === "AFFILIATE_CHANNEL" ||
-      ((view === "MUSIC" || view === "VIDEOS") &&
-        signalSource === "affiliate")
+    const inAffiliateSystem = signalSource === "affiliate"
 
     if (inAffiliateSystem) {
       setAffiliateIndex((current) =>
         ((current ?? 0) + direction + affiliateDirectory.length) %
         affiliateDirectory.length
       )
+      setMenuIndex(0)
+      setView("CHANNEL_MENU")
       triggerSignal(() => {})
       return
     }
@@ -264,9 +304,8 @@ export function BroadcastConsole() {
     channelRef.current = next
     setSelectedChannel(next)
     setSignalSource("member")
-    if (view !== "MUSIC" && view !== "VIDEOS") {
-      setView("MEMBER_CHANNEL")
-    }
+    setMenuIndex(0)
+    setView("CHANNEL_MENU")
 
     clearTransition()
     setTransitionId((current) => current + 1)
@@ -285,6 +324,24 @@ export function BroadcastConsole() {
         (current + direction + affiliateDirectory.length) %
         affiliateDirectory.length
       )
+      return
+    }
+    const count = view === "CHANNEL_MENU" ? 2 : view === "SONGS_MENU" ? 3 : view === "VIDEOS_MENU" ? currentChannel.media.videos.length : 0
+    if (count > 0) setMenuIndex((current) => (current + direction + count) % count)
+  }
+
+  const goBack = () => {
+    if (powerPhase !== "on" || transitioning) return
+    if (view === "CHANNEL_MENU") return
+    if (view === "SONGS_MENU" || view === "VIDEOS_MENU") {
+      setView("CHANNEL_MENU")
+      setMenuIndex(0)
+    } else if (view === "ALBUMS_EPS" || view === "SINGLES" || view === "EXCLUSIVE_PREVIEW") {
+      setView("SONGS_MENU")
+      setMenuIndex(0)
+    } else if (view === "VIDEO_PLAYER") {
+      setView("VIDEOS_MENU")
+      setMenuIndex(0)
     }
   }
 
@@ -298,7 +355,17 @@ export function BroadcastConsole() {
     } else if (view === "AFFILIATE_DIRECTORY") {
       setAffiliateIndex(menuIndex)
       setSignalSource("affiliate")
-      setView("AFFILIATE_CHANNEL")
+      setMenuIndex(0)
+      setView("CHANNEL_MENU")
+    } else if (view === "CHANNEL_MENU") {
+      setMenuIndex(0)
+      setView(menuIndex === 0 ? "SONGS_MENU" : "VIDEOS_MENU")
+    } else if (view === "SONGS_MENU") {
+      const songsViews: View[] = ["ALBUMS_EPS", "SINGLES", "EXCLUSIVE_PREVIEW"]
+      setView(songsViews[menuIndex])
+      setMenuIndex(0)
+    } else if (view === "VIDEOS_MENU" && currentChannel.media.videos.length > 0) {
+      setView("VIDEO_PLAYER")
     }
   }
 
@@ -310,7 +377,8 @@ export function BroadcastConsole() {
       view === "AFFILIATE_INTRO" ||
       view === "AFFILIATE_DIRECTORY"
     ) return
-    setView(section)
+    setMenuIndex(0)
+    setView(section === "MUSIC" ? "SONGS_MENU" : "VIDEOS_MENU")
   }
 
   const openAffiliateIntro = () => {
@@ -339,6 +407,15 @@ export function BroadcastConsole() {
     "--tx": "0px",
     "--ty": "0px",
   } as CSSProperties
+
+  const updateVolumeFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    const bar = volumeBarRef.current
+    if (!bar) return
+    const rect = bar.getBoundingClientRect()
+    const usableWidth = Math.max(1, rect.width - VOLUME_KNOB_SIZE)
+    const next = Math.min(1, Math.max(0, (event.clientX - rect.left - VOLUME_KNOB_INSET) / usableWidth))
+    setVolume(next)
+  }
 
   return (
     <section
@@ -699,41 +776,43 @@ export function BroadcastConsole() {
                                 AFFILIATE
                               </p>
                               <div className="mt-4">
-                                {affiliateDirectory.map((name, index) => (
+                                {affiliateDirectory.map((affiliateEntry, index) => (
                                   <div
-                                    key={name}
+                                    key={affiliateEntry.id}
                                     className={`block w-full border-b border-[#d2ba81]/15 py-3 text-left font-display text-lg uppercase md:text-2xl ${menuIndex === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}
                                   >
-                                    {name}
+                                    {affiliateEntry.name}
                                   </div>
                                 ))}
                               </div>
                             </div>
-                          ) : view === "MEMBER_CHANNEL" ? (
-                            <>
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-black/20" />
-                              <div className="absolute inset-0 flex flex-col justify-between p-5 text-white md:p-8">
-                                <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">{channelLabel}</span>
-                                <h3 className="font-display text-[8vw] leading-[0.76] tracking-[-0.055em] uppercase md:text-[4.6vw]">{member.name}</h3>
-                              </div>
-                            </>
-                          ) : view === "AFFILIATE_CHANNEL" ? (
-                            <div className="absolute inset-0 flex flex-col justify-between bg-[#09100c] p-5 text-[#ded3bc] md:p-8" style={{ containerType: "inline-size" }}>
-                              <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">AFFILIATE SIGNAL</span>
-                              <div>
-                                <h3 className="max-w-full whitespace-nowrap font-display leading-[0.85] tracking-[-0.055em] uppercase" style={{ fontSize: (affiliateName?.length ?? 0) > 11 ? "clamp(0.9rem, 7.8cqw, 3rem)" : "clamp(1.3rem, 8.4cqw, 3.5rem)" }}>{affiliateName}</h3>
-                                <p className="mt-5 font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">TO BE ANNOUNCED</p>
-                              </div>
-                            </div>
                           ) : (
-                            <div className="absolute inset-0 flex flex-col justify-between bg-[#09100c] p-5 text-[#ded3bc] md:p-8">
-                              <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">
-                                {signalSource === "member" ? channelLabel : "AFFILIATE SIGNAL"} / {identity}
-                              </span>
-                              <div>
-                                <h3 className="font-display text-[8vw] leading-[0.76] tracking-[-0.055em] uppercase md:text-[4.6vw]">{view}</h3>
-                                <p className="mt-5 font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">TO BE ANNOUNCED</p>
+                            <div className="absolute inset-0 bg-[#09100c] p-5 text-[#ded3bc] md:p-8">
+                              <div className="absolute left-5 top-5 font-mono text-[8px] uppercase tracking-[0.2em] text-white/60 md:left-8 md:top-8">
+                                <span>{channelLabel}</span><br />{identity}
                               </div>
+                              <div className="absolute left-1/2 top-[22%] -translate-x-1/2 text-center font-mono text-sm font-bold uppercase tracking-[0.2em] text-[#d94337] md:text-lg" style={{ textShadow: "1px 0 0 rgba(255,80,65,.7), -1px 0 0 rgba(120,20,18,.65), 0 1px 0 rgba(120,20,18,.65)" }}>
+                                {identity}
+                              </div>
+                              {view === "CHANNEL_MENU" || view === "SONGS_MENU" ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 text-center font-mono text-xl font-bold tracking-[0.16em] md:text-3xl">
+                                  {(view === "CHANNEL_MENU" ? ["SONGS", "VIDEOS"] : ["ALBUMS AND EPs", "SINGLES", "EXCLUSIVE PREVIEW"]).map((item, index) => (
+                                    <div key={item} className={menuIndex === index ? "text-[#f2dfb5] [text-shadow:0_0_10px_rgba(242,223,181,.55)]" : "text-[#c0ae85]/55"}>{menuIndex === index ? "> " : ""}{item}</div>
+                                  ))}
+                                </div>
+                              ) : view === "VIDEOS_MENU" ? (
+                                <div className="absolute inset-0 flex items-center justify-center text-center font-mono text-xl font-bold tracking-[0.16em] text-[#f2dfb5] md:text-3xl">
+                                  {currentChannel.media.videos.length ? currentChannel.media.videos[menuIndex]?.title : "NOTHING YET"}
+                                </div>
+                              ) : view === "VIDEO_PLAYER" ? (
+                                <div className="absolute inset-0 flex items-center justify-center text-center font-mono text-lg tracking-[0.14em] text-[#f2dfb5]">NOTHING YET</div>
+                              ) : (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center font-mono text-xl font-bold tracking-[0.12em] text-[#f2dfb5] md:text-3xl">
+                                  {(currentChannel.media[view === "ALBUMS_EPS" ? "albumsEps" : view === "SINGLES" ? "singles" : "exclusivePreview"] ?? []).length
+                                    ? (currentChannel.media[view === "ALBUMS_EPS" ? "albumsEps" : view === "SINGLES" ? "singles" : "exclusivePreview"] ?? []).map((item) => <div key={item}>{item}</div>)
+                                    : "NOTHING YET"}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -894,7 +973,7 @@ export function BroadcastConsole() {
                     <button
                       type="button"
                       onClick={goHome}
-                      className="remote-black-button"
+                      className="remote-black-button text-[15px] font-bold uppercase text-[#e2d8c2]"
                     >
                       HOME
                     </button>
@@ -903,7 +982,7 @@ export function BroadcastConsole() {
                     <button
                       type="button"
                       onClick={togglePower}
-                      className="remote-black-button"
+                      className="remote-black-button text-[15px] font-bold uppercase text-[#e2d8c2]"
                     >
                       POWER
                     </button>
@@ -957,23 +1036,89 @@ export function BroadcastConsole() {
                   </div>
                   {/* destinations */}
                   <div className="mt-4">
-                    <p className="mb-2 font-mono text-[7px] uppercase tracking-[0.18em] text-white/22">Destination</p>
+                    <p className="mb-2 font-mono text-[13px] uppercase tracking-[0.08em] text-white/55">Destination</p>
                     <div className="grid grid-cols-3 gap-2">
-                      <button type="button" onClick={() => openSection("MUSIC")} className={`remote-destination-button ${view === "MUSIC" ? "remote-destination-active" : ""}`}>MUSIC</button>
-                      <button type="button" onClick={() => openSection("VIDEOS")} className={`remote-destination-button ${view === "VIDEOS" ? "remote-destination-active" : ""}`}>VIDEOS</button>
-                      <button type="button" onClick={openAffiliateIntro} className={`remote-destination-button ${view === "AFFILIATE_INTRO" || view === "AFFILIATE_DIRECTORY" || view === "AFFILIATE_CHANNEL" ? "remote-destination-active" : ""}`}>AFFILIATE</button>
+                      <button type="button" onClick={() => openSection("MUSIC")} className={`remote-destination-button text-[15px] font-bold tracking-[0.01em] ${view === "SONGS_MENU" ? "remote-destination-active" : ""}`}>MUSIC</button>
+                      <button type="button" onClick={() => openSection("VIDEOS")} className={`remote-destination-button text-[15px] font-bold tracking-[0.01em] ${view === "VIDEOS_MENU" ? "remote-destination-active" : ""}`}>VIDEOS</button>
+                      <div className="flex flex-col gap-2">
+                        <button type="button" onClick={goBack} className="remote-destination-button py-1 text-[15px] font-bold tracking-[0.01em]">BACK</button>
+                        <button type="button" onClick={openAffiliateIntro} className={`remote-destination-button text-[14px] font-bold tracking-[-0.01em] ${view === "AFFILIATE_INTRO" || view === "AFFILIATE_DIRECTORY" || signalSource === "affiliate" ? "remote-destination-active" : ""}`}>AFFILIATE</button>
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-5 flex justify-between border-t border-white/[0.07] pt-3 font-mono text-[6px] uppercase tracking-[0.15em] text-white/17">
-
-                    <span>
-                      use responsibly
-                    </span>
-
-                    <span>
-                      do not lose
-                    </span>
-
+                  <div className="mt-5 border-t border-white/[0.07] pt-4">
+                    <div className="mb-3 flex items-center justify-between font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-white/55">
+                      <span>Volume</span>
+                      <span className="text-[12px] text-[#c5a565]/80">{Math.round(volume * 100).toString().padStart(3, "0")}%</span>
+                    </div>
+                    <div
+                      ref={volumeBarRef}
+                      role="slider"
+                      aria-label="Remote volume"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.round(volume * 100)}
+                      tabIndex={0}
+                      onPointerDown={(event) => {
+                        event.currentTarget.setPointerCapture(event.pointerId)
+                        updateVolumeFromPointer(event)
+                      }}
+                      onPointerMove={(event) => {
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) updateVolumeFromPointer(event)
+                      }}
+                      onPointerUp={(event) => {
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+                      }}
+                      onPointerCancel={(event) => {
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "ArrowRight") setVolume(Math.min(1, volume + 0.05))
+                        if (event.key === "ArrowLeft") setVolume(Math.max(0, volume - 0.05))
+                      }}
+                      className="cursor-ew-resize touch-none rounded-full border border-[#090909] bg-[#292a28] shadow-[inset_0_3px_7px_rgba(0,0,0,.9),inset_0_1px_0_rgba(255,255,255,.14),inset_0_-2px_0_rgba(0,0,0,.65)]"
+                      style={{
+                        position: "relative",
+                        width: "100%",
+                        height: 46,
+                        borderRadius: 9999,
+                        background: "linear-gradient(180deg, #3b3c39 0%, #272825 42%, #1a1b19 100%)",
+                        boxShadow: "inset 0 3px 7px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.14), inset 0 -2px 0 rgba(0,0,0,.65), 0 1px 0 rgba(255,255,255,.05)",
+                      }}
+                    >
+                      <div
+                        className="pointer-events-none rounded-full border-2 border-[#111210] bg-[#080908] shadow-[inset_0_3px_6px_rgba(0,0,0,.98),inset_0_1px_0_rgba(255,255,255,.12),0_1px_0_rgba(255,255,255,.08)]"
+                        style={{
+                          position: "absolute",
+                          left: 22,
+                          right: 22,
+                          top: "50%",
+                          height: 20,
+                          transform: "translateY(-50%)",
+                          borderRadius: 9999,
+                          background: "linear-gradient(180deg, #161816 0%, #050605 58%, #0e100e 100%)",
+                          boxShadow: "inset 0 3px 6px rgba(0,0,0,.98), inset 0 1px 0 rgba(255,255,255,.12), 0 1px 0 rgba(255,255,255,.08)",
+                        }}
+                      />
+                      <div
+                        className="pointer-events-none z-20"
+                        style={{
+                          position: "absolute",
+                          left: 22,
+                          right: 22,
+                          top: 0,
+                          bottom: 0,
+                          zIndex: 30,
+                        }}
+                      >
+                        <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#171816] bg-[#5b5c57] shadow-[inset_0_3px_4px_rgba(255,255,255,.24),inset_0_-6px_8px_rgba(0,0,0,.82),0_3px_7px_rgba(0,0,0,.9)]" style={{ left: `${volume * 100}%`, width: 44, height: 44, zIndex: 30, background: "linear-gradient(145deg, #73756f 0%, #4c4e49 38%, #262824 100%)" }}>
+                          <span className="absolute inset-[6px] rounded-full border border-black/80 bg-[#242622] shadow-[inset_0_3px_4px_rgba(0,0,0,.95),inset_0_1px_0_rgba(255,255,255,.15),0_1px_0_rgba(255,255,255,.06)]">
+                            <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#a68b4d]/90 shadow-[0_0_3px_rgba(166,139,77,.35)]" />
+                            <span className="absolute left-[22%] top-[18%] h-[3px] w-[7px] rotate-[-28deg] rounded-full bg-white/20 blur-[1px]" />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                 </div>

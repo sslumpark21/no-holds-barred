@@ -51,7 +51,7 @@ export function SiteHeader() {
                 className={`
                   whitespace-nowrap
                   font-mono
-                  text-[8px]
+                  text-[11px]
                   font-bold
                   uppercase
                   tracking-[0.18em]

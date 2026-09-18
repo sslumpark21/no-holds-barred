@@ -10,6 +10,8 @@ export interface PlayableTrack {
   audioUrl: string
 }
 
+export type RepeatMode = "off" | "all" | "one"
+
 interface AudioContextValue {
   current: PlayableTrack | null
   isPlaying: boolean
@@ -21,6 +23,11 @@ interface AudioContextValue {
   toggle: () => void
   seek: (fraction: number) => void
   setVolume: (v: number) => void
+  shuffle: boolean
+  repeatMode: RepeatMode
+  queueLength: number
+  toggleShuffle: () => void
+  cycleRepeat: () => void
 }
 
 const AudioCtx = createContext<AudioContextValue | null>(null)
@@ -38,6 +45,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolumeState] = useState(0.8)
+  const [queue, setQueue] = useState<PlayableTrack[]>([])
+  const [shuffle, setShuffle] = useState(false)
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>("off")
+  const currentRef = useRef<PlayableTrack | null>(null)
+  const repeatModeRef = useRef<RepeatMode>("off")
 
   useEffect(() => {
     const el = new Audio()
@@ -47,7 +59,16 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     const onTime = () => setCurrentTime(el.currentTime)
     const onMeta = () => setDuration(el.duration || 0)
-    const onEnd = () => setIsPlaying(false)
+    const onEnd = () => {
+      const track = currentRef.current
+      const mode = repeatModeRef.current
+      if (track && (mode === "one" || mode === "all")) {
+        el.currentTime = 0
+        void el.play()
+        return
+      }
+      setIsPlaying(false)
+    }
     const onPlay = () => setIsPlaying(true)
     const onPause = () => setIsPlaying(false)
 
@@ -78,6 +99,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         return
       }
       setCurrent(track)
+      currentRef.current = track
+      setQueue((existing) => existing.length ? existing : [track])
       el.src = track.audioUrl
       el.load()
       void el.play().catch(() => setIsPlaying(false))
@@ -108,6 +131,19 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (el) el.volume = v
   }, [])
 
+  const toggleShuffle = useCallback(() => {
+    if (queue.length < 2) return
+    setShuffle((active) => !active)
+  }, [queue.length])
+
+  const cycleRepeat = useCallback(() => {
+    setRepeatMode((mode) => {
+      const next = mode === "off" ? "all" : mode === "all" ? "one" : "off"
+      repeatModeRef.current = next
+      return next
+    })
+  }, [])
+
   const value: AudioContextValue = {
     current,
     isPlaying,
@@ -119,6 +155,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     toggle,
     seek,
     setVolume,
+    shuffle,
+    repeatMode,
+    queueLength: queue.length,
+    toggleShuffle,
+    cycleRepeat,
   }
 
   return <AudioCtx.Provider value={value}>{children}</AudioCtx.Provider>
