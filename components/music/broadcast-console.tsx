@@ -238,6 +238,17 @@ export function BroadcastConsole() {
     setTransitioning(false)
   }
 
+  const startChannelTransition = () => {
+    clearTransition()
+    setTransitionId((current) => current + 1)
+    setTransitioning(true)
+    triggerSignal(() => {})
+    transitionTimerRef.current = window.setTimeout(() => {
+      setTransitioning(false)
+      transitionTimerRef.current = null
+    }, 300)
+  }
+
   const clearPowerTimer = () => {
     if (powerTimerRef.current !== null) {
       window.clearTimeout(powerTimerRef.current)
@@ -295,7 +306,7 @@ export function BroadcastConsole() {
       )
       setMenuIndex(0)
       setView("CHANNEL_MENU")
-      triggerSignal(() => {})
+      startChannelTransition()
       return
     }
 
@@ -307,14 +318,7 @@ export function BroadcastConsole() {
     setMenuIndex(0)
     setView("CHANNEL_MENU")
 
-    clearTransition()
-    setTransitionId((current) => current + 1)
-    setTransitioning(true)
-    triggerSignal(() => {})
-    transitionTimerRef.current = window.setTimeout(() => {
-      setTransitioning(false)
-      transitionTimerRef.current = null
-    }, 300)
+    startChannelTransition()
   }
 
   const navigateMenu = (direction: -1 | 1) => {
@@ -1038,11 +1042,11 @@ export function BroadcastConsole() {
                   <div className="mt-4">
                     <p className="mb-2 font-mono text-[13px] uppercase tracking-[0.08em] text-white/55">Destination</p>
                     <div className="grid grid-cols-3 gap-2">
-                      <button type="button" onClick={() => openSection("MUSIC")} className={`remote-destination-button text-[15px] font-bold tracking-[0.01em] ${view === "SONGS_MENU" ? "remote-destination-active" : ""}`}>MUSIC</button>
-                      <button type="button" onClick={() => openSection("VIDEOS")} className={`remote-destination-button text-[15px] font-bold tracking-[0.01em] ${view === "VIDEOS_MENU" ? "remote-destination-active" : ""}`}>VIDEOS</button>
+                      <button type="button" onClick={() => openSection("MUSIC")} className={`remote-destination-button ${view === "SONGS_MENU" ? "remote-destination-active" : ""}`}>MUSIC</button>
+                      <button type="button" onClick={() => openSection("VIDEOS")} className={`remote-destination-button ${view === "VIDEOS_MENU" ? "remote-destination-active" : ""}`}>VIDEOS</button>
                       <div className="flex flex-col gap-2">
-                        <button type="button" onClick={goBack} className="remote-destination-button py-1 text-[15px] font-bold tracking-[0.01em]">BACK</button>
-                        <button type="button" onClick={openAffiliateIntro} className={`remote-destination-button text-[14px] font-bold tracking-[-0.01em] ${view === "AFFILIATE_INTRO" || view === "AFFILIATE_DIRECTORY" || signalSource === "affiliate" ? "remote-destination-active" : ""}`}>AFFILIATE</button>
+                        <button type="button" onClick={goBack} className="remote-destination-button py-1">BACK</button>
+                        <button type="button" onClick={openAffiliateIntro} className={`remote-destination-button ${view === "AFFILIATE_INTRO" || view === "AFFILIATE_DIRECTORY" || signalSource === "affiliate" ? "remote-destination-active" : ""}`}>AFFILIATE</button>
                       </div>
                     </div>
                   </div>
