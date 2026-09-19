@@ -20,6 +20,7 @@ interface AudioContextValue {
   duration: number
   volume: number
   play: (track: PlayableTrack) => void
+  playQueue: (tracks: PlayableTrack[], startIndex: number) => void
   toggle: () => void
   seek: (fraction: number) => void
   setVolume: (v: number) => void
@@ -31,6 +32,15 @@ interface AudioContextValue {
 }
 
 const AudioCtx = createContext<AudioContextValue | null>(null)
+
+function shuffledRemaining(length: number, currentIndex: number) {
+  const remaining = Array.from({ length }, (_, index) => index).filter((index) => index !== currentIndex)
+  for (let index = remaining.length - 1; index > 0; index--) {
+    const randomIndex = Math.floor(Math.random() * (index + 1))
+    ;[remaining[index], remaining[randomIndex]] = [remaining[randomIndex], remaining[index]]
+  }
+  return remaining
+}
 
 export function useAudio() {
   const ctx = useContext(AudioCtx)
@@ -49,7 +59,25 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [shuffle, setShuffle] = useState(false)
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("off")
   const currentRef = useRef<PlayableTrack | null>(null)
+  const queueRef = useRef<PlayableTrack[]>([])
+  const currentIndexRef = useRef(0)
+  const shuffleRef = useRef(false)
+  const shuffleRemainingRef = useRef<number[]>([])
   const repeatModeRef = useRef<RepeatMode>("off")
+
+  const startAt = useCallback((index: number) => {
+    const el = audioRef.current
+    const track = queueRef.current[index]
+    if (!el || !track) return
+    currentIndexRef.current = index
+    currentRef.current = track
+    setCurrent(track)
+    setCurrentTime(0)
+    setDuration(0)
+    el.src = track.audioUrl
+    el.load()
+    void el.play().catch(() => setIsPlaying(false))
+  }, [])
 
   useEffect(() => {
     const el = new Audio()
@@ -60,12 +88,32 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const onTime = () => setCurrentTime(el.currentTime)
     const onMeta = () => setDuration(el.duration || 0)
     const onEnd = () => {
-      const track = currentRef.current
       const mode = repeatModeRef.current
-      if (track && (mode === "one" || mode === "all")) {
+      if (mode === "one") {
         el.currentTime = 0
-        void el.play()
+        void el.play().catch(() => setIsPlaying(false))
         return
+      }
+      const tracks = queueRef.current
+      if (shuffleRef.current && tracks.length > 1) {
+        if (!shuffleRemainingRef.current.length && mode === "all") {
+          shuffleRemainingRef.current = shuffledRemaining(tracks.length, currentIndexRef.current)
+        }
+        const next = shuffleRemainingRef.current.shift()
+        if (next !== undefined) {
+          startAt(next)
+          return
+        }
+      } else {
+        const next = currentIndexRef.current + 1
+        if (next < tracks.length) {
+          startAt(next)
+          return
+        }
+        if (mode === "all" && tracks.length) {
+          startAt(0)
+          return
+        }
       }
       setIsPlaying(false)
     }
@@ -86,34 +134,39 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       el.removeEventListener("play", onPlay)
       el.removeEventListener("pause", onPause)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [startAt])
+
+  const playQueue = useCallback((tracks: PlayableTrack[], startIndex: number) => {
+    if (!tracks.length || startIndex < 0 || startIndex >= tracks.length) return
+    queueRef.current = tracks
+    setQueue(tracks)
+    shuffleRemainingRef.current = shuffleRef.current ? shuffledRemaining(tracks.length, startIndex) : []
+    startAt(startIndex)
+  }, [startAt])
 
   const play = useCallback(
     (track: PlayableTrack) => {
       const el = audioRef.current
       if (!el) return
-      if (current?.id === track.id) {
+      if (currentRef.current?.id === track.id) {
         if (el.paused) void el.play()
         else el.pause()
         return
       }
-      setCurrent(track)
-      currentRef.current = track
-      setQueue((existing) => existing.length ? existing : [track])
-      el.src = track.audioUrl
-      el.load()
-      void el.play().catch(() => setIsPlaying(false))
+      queueRef.current = [track]
+      setQueue([track])
+      shuffleRemainingRef.current = []
+      startAt(0)
     },
-    [current],
+    [startAt],
   )
 
   const toggle = useCallback(() => {
     const el = audioRef.current
-    if (!el || !current) return
+    if (!el || !currentRef.current) return
     if (el.paused) void el.play()
     else el.pause()
-  }, [current])
+  }, [])
 
   const seek = useCallback(
     (fraction: number) => {
@@ -132,9 +185,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const toggleShuffle = useCallback(() => {
-    if (queue.length < 2) return
-    setShuffle((active) => !active)
-  }, [queue.length])
+    if (queueRef.current.length < 2) return
+    const next = !shuffleRef.current
+    shuffleRef.current = next
+    shuffleRemainingRef.current = next ? shuffledRemaining(queueRef.current.length, currentIndexRef.current) : []
+    setShuffle(next)
+  }, [])
 
   const cycleRepeat = useCallback(() => {
     setRepeatMode((mode) => {
@@ -152,6 +208,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     duration,
     volume,
     play,
+    playQueue,
     toggle,
     seek,
     setVolume,

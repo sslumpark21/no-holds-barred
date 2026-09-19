@@ -3,12 +3,14 @@
 import Image from "next/image"
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
 } from "react"
 
 import { artists, releases } from "@/lib/data"
+import type { Release } from "@/lib/types"
 import { useAudio } from "@/components/audio/audio-provider"
 
 const lightByChannel = [
@@ -23,6 +25,7 @@ type View =
   | "SONGS_MENU"
   | "ALBUMS_EPS"
   | "SINGLES"
+  | "RELEASE_TRACKS"
   | "EXCLUSIVE_PREVIEW"
   | "VIDEOS_MENU"
   | "VIDEO_PLAYER"
@@ -40,8 +43,8 @@ const affiliateDirectory = [
 ]
 
 type ChannelMedia = {
-  albumsEps: string[]
-  singles: string[]
+  albumsEps: Release[]
+  singles: Release[]
   exclusivePreview: string[]
   videos: { title: string; url: string }[]
 }
@@ -67,13 +70,15 @@ const VOLUME_KNOB_SIZE = 44
 const VOLUME_KNOB_INSET = VOLUME_KNOB_SIZE / 2
 
 export function BroadcastConsole() {
-  const { volume, setVolume } = useAudio()
+  const { volume, setVolume, playQueue } = useAudio()
   const [powerOn, setPowerOn] = useState(true)
   const [powerPhase, setPowerPhase] = useState<PowerPhase>("on")
   const [view, setView] = useState<View>("HOME")
   const [selectedChannel, setSelectedChannel] = useState(0)
   const [affiliateIndex, setAffiliateIndex] = useState<number | null>(null)
   const [menuIndex, setMenuIndex] = useState(0)
+  const [selectedReleaseSlug, setSelectedReleaseSlug] = useState<string | null>(null)
+  const [releaseReturnView, setReleaseReturnView] = useState<"ALBUMS_EPS" | "SINGLES">("ALBUMS_EPS")
   const [signalSource, setSignalSource] = useState<SignalSource>("member")
   const [transitioning, setTransitioning] = useState(false)
   const [transitionId, setTransitionId] = useState(0)
@@ -84,19 +89,25 @@ export function BroadcastConsole() {
   const transitionTimerRef = useRef<number | null>(null)
   const powerTimerRef = useRef<number | null>(null)
   const volumeBarRef = useRef<HTMLDivElement | null>(null)
+  const deepLinkHandledRef = useRef(false)
 
   const member = artists[selectedChannel]
   const light = lightByChannel[selectedChannel]
   const affiliate = affiliateIndex === null ? null : affiliateDirectory[affiliateIndex]
+  const memberReleases = member.releaseSlugs
+    .map((slug) => releases.find((release) => release.slug === slug))
+    .filter((release): release is Release => Boolean(release))
   const officialMedia: ChannelMedia = {
-    albumsEps: member.releaseSlugs.map((slug) => releases.find((release) => release.slug === slug)).filter((release) => release?.type === "Album" || release?.type === "EP").map((release) => release!.title),
-    singles: member.releaseSlugs.map((slug) => releases.find((release) => release.slug === slug)).filter((release) => release?.type === "Single").map((release) => release!.title),
+    albumsEps: memberReleases.filter((release) => release.type !== "Single"),
+    singles: memberReleases.filter((release) => release.type === "Single"),
     exclusivePreview: member.unreleased.map((track) => track.title),
     videos: member.videos.map((video) => ({ title: video.title, url: video.id })),
   }
   const currentChannel: CurrentChannel = signalSource === "affiliate" && affiliate
     ? { kind: "affiliate", id: affiliate.id, name: affiliate.name, label: `EX ${String((affiliateIndex ?? 0) + 1).padStart(2, "0")}`, media: affiliateMedia[affiliate.id] ?? emptyMedia }
     : { kind: "member", id: member.slug, name: member.name, label: `CH ${String(selectedChannel + 1).padStart(2, "0")}`, media: officialMedia }
+  const selectedRelease = [...currentChannel.media.albumsEps, ...currentChannel.media.singles]
+    .find((release) => release.slug === selectedReleaseSlug)
   const identity = currentChannel.name
   const channelLabel = currentChannel.label
 
@@ -110,6 +121,49 @@ export function BroadcastConsole() {
       }
     }
   }, [])
+
+  useLayoutEffect(() => {
+    if (deepLinkHandledRef.current) return
+
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("tv") !== "1") return
+
+    const artistSlug = params.get("artist")
+    const releaseSlug = params.get("release")
+    const requestedView = params.get("view")
+    const artistIndex = artists.findIndex((artist) => artist.slug === artistSlug)
+    const release = releases.find((entry) => entry.slug === releaseSlug && entry.artistSlug === artistSlug)
+    if (artistIndex < 0 || !release || !artists[artistIndex].releaseSlugs.includes(release.slug)) return
+
+    const releaseView = release.type === "Single" ? "singles" : "albums-eps"
+    if (requestedView !== releaseView) return
+
+    const artistReleases = artists[artistIndex].releaseSlugs
+      .map((slug) => releases.find((entry) => entry.slug === slug))
+      .filter((entry): entry is Release => Boolean(entry))
+      .filter((entry) => releaseView === "singles" ? entry.type === "Single" : entry.type !== "Single")
+    const releaseIndex = artistReleases.findIndex((entry) => entry.slug === release.slug)
+    if (releaseIndex < 0) return
+
+    deepLinkHandledRef.current = true
+    channelRef.current = artistIndex
+    setPowerOn(true)
+    setPowerPhase("on")
+    setSignalSource("member")
+    setAffiliateIndex(null)
+    setSelectedChannel(artistIndex)
+    setMenuIndex(releaseIndex)
+    setView(releaseView === "singles" ? "SINGLES" : "ALBUMS_EPS")
+
+    for (const key of ["tv", "artist", "view", "release"]) params.delete(key)
+    const remainingQuery = params.toString()
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}${remainingQuery ? `?${remainingQuery}` : ""}${window.location.hash || "#broadcast"}`,
+    )
+  }, [])
+
   useEffect(() => {
     const remote = remoteRef.current
 
@@ -330,7 +384,13 @@ export function BroadcastConsole() {
       )
       return
     }
-    const count = view === "CHANNEL_MENU" ? 2 : view === "SONGS_MENU" ? 3 : view === "VIDEOS_MENU" ? currentChannel.media.videos.length : 0
+    const count = view === "CHANNEL_MENU" ? 2
+      : view === "SONGS_MENU" ? 3
+      : view === "ALBUMS_EPS" ? currentChannel.media.albumsEps.length
+      : view === "SINGLES" ? currentChannel.media.singles.length
+      : view === "RELEASE_TRACKS" ? selectedRelease?.tracklist.length ?? 0
+      : view === "VIDEOS_MENU" ? currentChannel.media.videos.length
+      : 0
     if (count > 0) setMenuIndex((current) => (current + direction + count) % count)
   }
 
@@ -343,7 +403,12 @@ export function BroadcastConsole() {
       }
       return
     }
-    if (view === "SONGS_MENU" || view === "VIDEOS_MENU") {
+    if (view === "RELEASE_TRACKS") {
+      const releaseList = releaseReturnView === "SINGLES" ? currentChannel.media.singles : currentChannel.media.albumsEps
+      const releaseIndex = releaseList.findIndex((release) => release.slug === selectedReleaseSlug)
+      setMenuIndex(Math.max(0, releaseIndex))
+      setView(releaseReturnView)
+    } else if (view === "SONGS_MENU" || view === "VIDEOS_MENU") {
       setView("CHANNEL_MENU")
       setMenuIndex(0)
     } else if (view === "ALBUMS_EPS" || view === "SINGLES" || view === "EXCLUSIVE_PREVIEW") {
@@ -374,6 +439,25 @@ export function BroadcastConsole() {
       const songsViews: View[] = ["ALBUMS_EPS", "SINGLES", "EXCLUSIVE_PREVIEW"]
       setView(songsViews[menuIndex])
       setMenuIndex(0)
+    } else if (view === "ALBUMS_EPS" || view === "SINGLES") {
+      const release = (view === "SINGLES" ? currentChannel.media.singles : currentChannel.media.albumsEps)[menuIndex]
+      if (!release) return
+      setSelectedReleaseSlug(release.slug)
+      setReleaseReturnView(view)
+      setMenuIndex(0)
+      setView("RELEASE_TRACKS")
+    } else if (view === "RELEASE_TRACKS" && selectedRelease) {
+      const tracks = selectedRelease.tracklist.filter((track) => Boolean(track.audioUrl))
+      const selectedTrack = selectedRelease.tracklist[menuIndex]
+      const startIndex = tracks.findIndex((track) => track.id === selectedTrack?.id)
+      if (startIndex < 0) return
+      playQueue(tracks.map((track) => ({
+        id: track.id,
+        title: track.title,
+        artist: selectedRelease.artistName,
+        artwork: selectedRelease.artwork,
+        audioUrl: track.audioUrl,
+      })), startIndex)
     } else if (view === "VIDEOS_MENU" && currentChannel.media.videos.length > 0) {
       setView("VIDEO_PLAYER")
     }
@@ -819,10 +903,33 @@ export function BroadcastConsole() {
                                 </div>
                               ) : view === "VIDEO_PLAYER" ? (
                                 <div className="absolute inset-0 flex items-center justify-center text-center font-mono text-lg tracking-[0.14em] text-[#f2dfb5]">NOTHING YET</div>
+                              ) : view === "RELEASE_TRACKS" ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-8 text-center font-mono text-[#f2dfb5]">
+                                  <p className="text-base font-bold tracking-[0.08em] md:text-xl">{selectedRelease?.title}</p>
+                                  <div className="flex flex-col gap-3 text-lg font-bold tracking-[0.12em] md:text-2xl">
+                                    {selectedRelease?.tracklist.length
+                                      ? selectedRelease.tracklist.map((track, index) => (
+                                          <div key={track.id} className={menuIndex === index ? "text-[#f2dfb5] [text-shadow:0_0_10px_rgba(242,223,181,.55)]" : "text-[#c0ae85]/55"}>
+                                            {menuIndex === index ? "> " : ""}{track.title}
+                                          </div>
+                                        ))
+                                      : "NO AUDIO YET"}
+                                  </div>
+                                </div>
+                              ) : view === "ALBUMS_EPS" || view === "SINGLES" ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center font-mono text-xl font-bold tracking-[0.12em] text-[#f2dfb5] md:text-3xl">
+                                  {(view === "ALBUMS_EPS" ? currentChannel.media.albumsEps : currentChannel.media.singles).length
+                                    ? (view === "ALBUMS_EPS" ? currentChannel.media.albumsEps : currentChannel.media.singles).map((release, index) => (
+                                        <div key={release.slug} className={menuIndex === index ? "text-[#f2dfb5] [text-shadow:0_0_10px_rgba(242,223,181,.55)]" : "text-[#c0ae85]/55"}>
+                                          {menuIndex === index ? "> " : ""}{release.title}
+                                        </div>
+                                      ))
+                                    : "NOTHING YET"}
+                                </div>
                               ) : (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center font-mono text-xl font-bold tracking-[0.12em] text-[#f2dfb5] md:text-3xl">
-                                  {(currentChannel.media[view === "ALBUMS_EPS" ? "albumsEps" : view === "SINGLES" ? "singles" : "exclusivePreview"] ?? []).length
-                                    ? (currentChannel.media[view === "ALBUMS_EPS" ? "albumsEps" : view === "SINGLES" ? "singles" : "exclusivePreview"] ?? []).map((item) => <div key={item}>{item}</div>)
+                                  {currentChannel.media.exclusivePreview.length
+                                    ? currentChannel.media.exclusivePreview.map((item) => <div key={item}>{item}</div>)
                                     : "NOTHING YET"}
                                 </div>
                               )}

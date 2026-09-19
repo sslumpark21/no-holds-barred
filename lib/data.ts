@@ -1,17 +1,4 @@
-import type { Artist, Release, JournalEntry, NHBEvent, Track } from "./types"
-
-// Placeholder audio (royalty-free samples) used across the player.
-const AUDIO = [
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
-]
-
-function track(id: string, title: string, duration: string, i = 0): Track {
-  return { id, title, duration, audioUrl: AUDIO[i % AUDIO.length] }
-}
+import type { Artist, Release, JournalEntry, NHBEvent } from "./types"
 
 export const artists: Artist[] = [
   {
@@ -45,7 +32,7 @@ export const artists: Artist[] = [
     portrait: "/images/affiliate-ghost-notation.png",
     hero: "/images/affiliate-ghost-notation.png",
     socials: [],
-    releaseSlugs: [],
+    releaseSlugs: ["moxli-nostalgia-omoara-progresul"],
     unreleased: [],
     videos: [],
     news: [],
@@ -79,157 +66,34 @@ export const affiliates: Artist[] = []
 
 export const releases: Release[] = [
   {
-    slug: "dead-air",
-    title: "Dead Air",
-    artistSlug: "velvet-static",
-    artistName: "Velvet Static",
+    slug: "moxli-nostalgia-omoara-progresul",
+    title: "nostalgia omoara progresul",
+    artistSlug: "moxli",
+    artistName: "MoxLi",
     type: "EP",
-    date: "2026-03-14",
-    year: "2026",
-    catalog: "NHB-011",
-    artwork: "/images/release-dead-air.png",
-    description: [
-      "Four studies in decay, recorded to a single reel of tape that was then partially erased.",
-      "Dead Air is the sound of a signal refusing to fully disappear.",
-    ],
-    tracklist: [
-      track("da-1", "Dead Air", "6:44", 0),
-      track("da-2", "Corridor", "5:12", 1),
-      track("da-3", "Erasure", "7:20", 2),
-      track("da-4", "Blue Hour", "6:01", 3),
-    ],
-  },
-  {
-    slug: "weightless",
-    title: "Weightless",
-    artistSlug: "koji-nd",
-    artistName: "Koji ND",
-    type: "Album",
-    date: "2025-10-02",
-    year: "2025",
-    catalog: "NHB-009",
-    artwork: "/images/release-weightless.png",
-    description: ["A full-length suite for the last hour of the night, mixed to play as one continuous piece."],
-    tracklist: [
-      track("w-1", "Afterimage", "5:20", 3),
-      track("w-2", "Low Ceiling", "6:41", 4),
-      track("w-3", "Suspended", "7:15", 0),
-      track("w-4", "Exit Music", "8:02", 1),
-    ],
-  },
-  {
-    slug: "paper-saints",
-    title: "Paper Saints",
-    artistSlug: "mara-voss",
-    artistName: "Mara Voss",
-    type: "Album",
-    date: "2025-06-20",
-    year: "2025",
-    catalog: "NHB-006",
-    artwork: "/images/release-paper-saints.png",
-    description: ["Eleven songs about faith, memory and mishearing. Accompanied by a hand-assembled zine."],
-    tracklist: [
-      track("ps-1", "Paper Saints", "3:58", 1),
-      track("ps-2", "Glass Diary", "4:26", 2),
-      track("ps-3", "Hymn for No One", "3:12", 3),
-      track("ps-4", "Torn Pages", "5:04", 4),
-    ],
-  },
-  {
-    slug: "first-takes",
-    title: "First Takes",
-    artistSlug: "the-late-hours",
-    artistName: "The Late Hours",
-    type: "Album",
-    date: "2025-01-31",
-    year: "2025",
-    catalog: "NHB-004",
-    artwork: "/images/release-first-takes.png",
-    description: ["Recorded live to tape over two nights. No overdubs. What you hear is the room."],
-    tracklist: [
-      track("ft-1", "Wire", "2:51", 0),
-      track("ft-2", "Curfew", "3:33", 3),
-      track("ft-3", "Nightshift", "4:10", 1),
-      track("ft-4", "Last Train", "3:47", 2),
-    ],
-  },
-  {
-    slug: "north-corridor",
-    title: "North Corridor",
-    artistSlug: "velvet-static",
-    artistName: "Velvet Static",
-    type: "Single",
-    date: "2024-09-13",
+    date: "2024",
     year: "2024",
-    catalog: "NHB-002",
-    artwork: "/images/release-north-corridor.png",
-    description: ["The first transmission from Velvet Static for no.holds.barred."],
-    tracklist: [track("nc-1", "North Corridor", "7:41", 2), track("nc-2", "North Corridor (Reduction)", "5:18", 0)],
-  },
-  {
-    slug: "transmission-one",
-    title: "Transmission One",
-    artistSlug: "various",
-    artistName: "Various Artists",
-    type: "Compilation",
-    date: "2024-04-01",
-    year: "2024",
-    catalog: "NHB-001",
-    artwork: "/images/release-transmission-one.png",
-    description: ["The inaugural compilation that defined the collective's first year. A statement of intent."],
+    catalog: "TEST",
+    artwork: "/images/moxli-nostalgia-omoara-progresul-cover.jpg",
+    description: ["To be announced."],
     tracklist: [
-      track("t1-1", "Velvet Static — Iron Loop", "4:48", 1),
-      track("t1-2", "Koji ND — Suspended", "7:15", 0),
-      track("t1-3", "Mara Voss — Torn Pages", "5:04", 4),
-      track("t1-4", "The Late Hours — Wire", "2:51", 3),
+      {
+        id: "moxli-nop-printul-persiei",
+        title: "printul persiei",
+        duration: "1:26",
+        audioUrl: "/audio/moxli/nostalgia-omoara-progresul/printul-persiei.wav",
+      },
+      {
+        id: "moxli-nop-grabba",
+        title: "grabba",
+        duration: "2:46",
+        audioUrl: "/audio/moxli/nostalgia-omoara-progresul/grabba.wav",
+      },
     ],
   },
 ]
 
 export const journal: JournalEntry[] = [
-  {
-    slug: "inside-velvet-static-tape-room",
-    title: "Inside Velvet Static's Tape Room",
-    category: "Studio Visit",
-    excerpt: "A morning among failing machines in a Neukölln basement, where decay is a compositional tool.",
-    author: "Editorial",
-    date: "2026.02.18",
-    readTime: "8 min",
-    cover: "/images/journal-tape-room.png",
-    body: [
-      "The room is smaller than you expect. Tape spools line one wall; a single window throws grey light across a mixing desk that has clearly survived several floods.",
-      "\"I don't fix anything that breaks in an interesting way,\" Velvet Static says, threading a reel that has already been recorded over twice.",
-      "What follows is less an interview than a demonstration — of patience, of listening, of letting a signal fall apart on its own terms.",
-    ],
-  },
-  {
-    slug: "koji-nd-on-the-last-hour",
-    title: "Koji ND on the Last Hour of the Night",
-    category: "Interview",
-    excerpt: "The Tokyo composer talks about writing for rooms that never fully empty.",
-    author: "Editorial",
-    date: "2026.01.29",
-    readTime: "12 min",
-    cover: "/images/journal-koji-interview.png",
-    body: [
-      "We meet at 5am, which Koji insists is the only honest time to discuss the music.",
-      "\"Everyone writes for the peak,\" he says. \"I'm interested in the part nobody remembers — when the room is deciding whether to stay.\"",
-    ],
-  },
-  {
-    slug: "paper-saints-release-story",
-    title: "The Making of Paper Saints",
-    category: "Release Story",
-    excerpt: "How Mara Voss turned a year of misheard prayers into an album and a zine.",
-    author: "Editorial",
-    date: "2025.06.19",
-    readTime: "10 min",
-    cover: "/images/journal-paper-saints.png",
-    body: [
-      "The album began as marginalia — notes scrawled in the backs of borrowed books.",
-      "\"I kept mishearing things,\" Voss says. \"Eventually the mishearings were more interesting than what was actually said.\"",
-    ],
-  },
   {
     slug: "night-photography-transmission-06",
     title: "Transmission 06 — In Photographs",
@@ -270,56 +134,7 @@ export const journal: JournalEntry[] = [
   },
 ]
 
-export const events: NHBEvent[] = [
-  {
-    slug: "nhb-transmission-07",
-    title: "NHB Transmission 07",
-    date: "2026-04-18",
-    dateLabel: "18 APR 2026",
-    venue: "Halle Null",
-    city: "Berlin",
-    lineup: ["Velvet Static", "Koji ND", "The Late Hours", "Lowtide"],
-    status: "upcoming",
-    image: "/images/event-transmission-07.png",
-    description: "An all-night transmission across two rooms. No phones on the floor. Doors at 23:00.",
-  },
-  {
-    slug: "voss-live-london",
-    title: "Mara Voss — Paper Saints Live",
-    date: "2026-05-09",
-    dateLabel: "09 MAY 2026",
-    venue: "St. Leonard's",
-    city: "London",
-    lineup: ["Mara Voss", "Ivy Kwon"],
-    status: "upcoming",
-    image: "/images/event-voss-live.png",
-    description: "A seated performance of Paper Saints in full, staged in a deconsecrated church.",
-  },
-  {
-    slug: "nhb-transmission-06",
-    title: "NHB Transmission 06",
-    date: "2025-11-15",
-    dateLabel: "15 NOV 2025",
-    venue: "The Substation",
-    city: "Amsterdam",
-    lineup: ["Koji ND", "Deniz Aran", "Patch"],
-    status: "past",
-    image: "/images/event-transmission-06.png",
-    description: "Our most recent all-night event. Documented in the Journal.",
-  },
-  {
-    slug: "loft-show-04",
-    title: "The Late Hours — Loft Show No.4",
-    date: "2025-08-22",
-    dateLabel: "22 AUG 2025",
-    venue: "Undisclosed",
-    city: "New York",
-    lineup: ["The Late Hours"],
-    status: "past",
-    image: "/images/event-loft-show.png",
-    description: "An unannounced loft show. Location shared by message only.",
-  },
-]
+export const events: NHBEvent[] = []
 
 // Lookup helpers
 export const allArtists = [...artists, ...affiliates]
