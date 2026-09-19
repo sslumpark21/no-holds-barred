@@ -13,7 +13,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
   const release = getRelease(slug)
-  if (!release) return { title: "Release — no.holds.barred" }
+  if (!release) return { title: "Release — no.holds.barred." }
   return { title: `${release.title} — ${release.artistName}`, description: release.description[0] }
 }
 
@@ -62,7 +62,7 @@ export default async function ReleasePage({ params }: { params: Promise<{ slug: 
       </section>
 
       <section className="px-4 md:px-6 py-12 md:py-16 border-t border-line">
-        <h2 className="eyebrow text-muted-ink mb-8">More from the catalogue</h2>
+        <h2 className="eyebrow text-muted-ink mb-8">More releases</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-10">
           {more.map((r) => (
             <ReleaseCard key={r.slug} release={r} />

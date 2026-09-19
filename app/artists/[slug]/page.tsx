@@ -10,8 +10,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
   const artist = getArtist(slug)
-  if (!artist) return { title: "Artist — no.holds.barred" }
-  return { title: `${artist.name} — no.holds.barred`, description: artist.tagline }
+  if (!artist) return { title: "Artist — no.holds.barred." }
+  return { title: `${artist.name} — no.holds.barred.`, description: artist.tagline }
 }
 
 export default async function ArtistPage({ params }: { params: Promise<{ slug: string }> }) {

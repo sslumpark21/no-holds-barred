@@ -2,21 +2,21 @@ import type { Metadata } from "next"
 import Link from "next/link"
 
 export const metadata: Metadata = {
-  title: "About — no.holds.barred",
-  description: "no.holds.barred is an independent music label and multidisciplinary creative collective.",
+  title: "About — no.holds.barred.",
+  description: "no.holds.barred. is a creative brand made by MoxLi and built as a multidisciplinary collective.",
 }
 
 const MANIFESTO = [
-  "no.holds.barred is an independent music label and a multidisciplinary creative collective.",
-  "We began as a series of unlabeled tapes and unannounced rooms. We remain suspicious of the word 'brand'.",
-  "We release records. We stage nights. We publish a journal. We point at the artists we love, whether or not they are ours.",
+  "no.holds.barred. is a creative brand made by MoxLi and built as a multidisciplinary collective.",
+  "It began with tapes and unannounced rooms. It keeps moving between forms.",
+  "We make music, images, films, clothing, and objects. We share work we believe in.",
   "Nothing here is corporate. Everything here is chosen.",
 ]
 
 const PRINCIPLES = [
-  { n: "01", t: "Curated, not corporate", d: "Every release, every affiliate, every night is chosen by hand. We would rather do less and mean it." },
+  { n: "01", t: "Curated, not corporate", d: "Every release, every collaboration, every night is chosen by hand. We would rather do less and mean it." },
   { n: "02", t: "The room is the record", d: "We treat live spaces and recordings as the same practice. Presence over polish." },
-  { n: "03", t: "Point outward", d: "A scene is bigger than a label. The affiliates list is how we admit that." },
+  { n: "03", t: "Point outward", d: "A scene is bigger than any one project. Curated artists are the voices we want to point toward." },
   { n: "04", t: "No fixed medium", d: "Music, print, photography, film, clothing — whatever the idea needs." },
 ]
 
@@ -50,12 +50,12 @@ export default function AboutPage() {
         <div className="max-w-3xl">
           <h2 className="font-display display-huge text-4xl md:text-7xl">Get in touch</h2>
           <p className="mt-6 text-paper/70 leading-relaxed max-w-xl">
-            Demos, collaborations, press, or an invitation to a room we should be in. We read
+            Ideas, collaborations, press, or an invitation to a room we should be in. We read
             everything, we reply to little. Persistence is a virtue.
           </p>
           <div className="mt-10 grid gap-8 sm:grid-cols-3">
             <div>
-              <p className="eyebrow text-paper/50 mb-2">Demos</p>
+              <p className="eyebrow text-paper/50 mb-2">Collaborate</p>
               <a href="mailto:demos@noholdsbarred.fm" className="text-sm link-underline">demos@noholdsbarred.fm</a>
             </div>
             <div>
@@ -68,7 +68,7 @@ export default function AboutPage() {
             </div>
           </div>
           <Link href="/artists" className="mt-12 inline-block eyebrow border border-paper px-6 py-3 hover:bg-paper hover:text-ink transition-colors">
-            Meet the artists →
+            Meet the members →
           </Link>
         </div>
       </section>

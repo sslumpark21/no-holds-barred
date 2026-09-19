@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Affiliates — no.holds.barred.",
+  title: "Curated Artists — no.holds.barred.",
 }
 
 export default function AffiliatesPage() {
@@ -11,12 +11,12 @@ export default function AffiliatesPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,rgba(0,0,0,.48)_68%,rgba(0,0,0,.9)_100%)]" />
       <div className="relative z-10 text-center">
         <p className="mb-6 font-mono text-[8px] font-bold uppercase tracking-[0.3em] text-[#c2b294]/80">
-          AFFILIATES
+          WE FW THESE JOINTS
         </p>
         <h1 className="font-display text-[16vw] leading-[0.74] tracking-[-0.06em] text-[#b2a794] md:text-[10vw]">
-          TO BE
+          CURATED
           <br />
-          ANNOUNCED
+          ARTISTS
         </h1>
       </div>
     </main>

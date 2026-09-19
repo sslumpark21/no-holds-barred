@@ -95,7 +95,7 @@ export function BroadcastConsole() {
     videos: member.videos.map((video) => ({ title: video.title, url: video.id })),
   }
   const currentChannel: CurrentChannel = signalSource === "affiliate" && affiliate
-    ? { kind: "affiliate", id: affiliate.id, name: affiliate.name, label: `AFF ${String((affiliateIndex ?? 0) + 1).padStart(2, "0")}`, media: affiliateMedia[affiliate.id] ?? emptyMedia }
+    ? { kind: "affiliate", id: affiliate.id, name: affiliate.name, label: `EX ${String((affiliateIndex ?? 0) + 1).padStart(2, "0")}`, media: affiliateMedia[affiliate.id] ?? emptyMedia }
     : { kind: "member", id: member.slug, name: member.name, label: `CH ${String(selectedChannel + 1).padStart(2, "0")}`, media: officialMedia }
   const identity = currentChannel.name
   const channelLabel = currentChannel.label
@@ -336,7 +336,13 @@ export function BroadcastConsole() {
 
   const goBack = () => {
     if (powerPhase !== "on" || transitioning) return
-    if (view === "CHANNEL_MENU") return
+    if (view === "CHANNEL_MENU") {
+      if (signalSource === "affiliate" && affiliateIndex !== null) {
+        setMenuIndex(affiliateIndex)
+        setView("AFFILIATE_DIRECTORY")
+      }
+      return
+    }
     if (view === "SONGS_MENU" || view === "VIDEOS_MENU") {
       setView("CHANNEL_MENU")
       setMenuIndex(0)
@@ -715,10 +721,10 @@ export function BroadcastConsole() {
 
 
             {/* The shell image supplies the physical casing, speaker, controls, and feet. */}
-            <div className="relative aspect-[1254/830] w-full overflow-hidden drop-shadow-[0_30px_50px_rgba(0,0,0,0.85)]">
+            <div className="relative aspect-[1369/1149] w-full drop-shadow-[0_30px_50px_rgba(0,0,0,0.85)]">
 
                     <div
-                      className={`absolute left-[8.5%] top-[10.2%] z-10 h-[72.8%] w-[64.2%] overflow-hidden rounded-[11%] bg-black shadow-[inset_0_0_70px_rgba(0,0,0,1)] ${
+                      className={`absolute left-[14.3%] top-[13.4%] z-10 h-[64%] w-[71.4%] overflow-hidden rounded-[2%] bg-black shadow-[inset_0_0_70px_rgba(0,0,0,1)] ${
                         powerOn
                           ? "nhb-screen-flicker"
                           : ""
@@ -768,7 +774,10 @@ export function BroadcastConsole() {
                                     "0 0 3px rgba(255,80,65,.95), 0 0 16px rgba(217,48,38,.85), 0 0 38px rgba(170,25,20,.65)",
                                 }}
                               >
-                                AFFILIATE
+                                CURATED ARTISTS
+                              </p>
+                              <p className="font-mono text-xs tracking-[0.16em] text-[#d94337] md:text-sm">
+                                WE FW THESE JOINTS
                               </p>
                               <p className="font-mono text-sm tracking-[0.16em] text-[#d94337] [text-shadow:0_0_12px_rgba(217,48,38,.7)] md:text-lg">
                                 Press OK
@@ -777,7 +786,7 @@ export function BroadcastConsole() {
                           ) : view === "AFFILIATE_DIRECTORY" ? (
                             <div className="absolute inset-0 overflow-y-auto bg-[#11100b] p-5 text-[#d4c49d] md:p-8">
                               <p className="border-b border-[#cbb67f]/20 pb-4 font-mono text-[8px] uppercase tracking-[0.2em]">
-                                AFFILIATE
+                                CURATED ARTISTS
                               </p>
                               <div className="mt-4">
                                 {affiliateDirectory.map((affiliateEntry, index) => (
@@ -846,10 +855,16 @@ export function BroadcastConsole() {
               <Image
                 src="/images/tv-shell.png"
                 alt=""
-                width={1254}
-                height={1254}
+                width={1369}
+                height={1149}
                 priority
-                className="pointer-events-none absolute left-0 top-[-24.7%] z-20 h-auto w-full select-none"
+                className="pointer-events-none absolute inset-0 z-20 h-full w-full select-none object-contain"
+              />
+              <button
+                type="button"
+                onClick={togglePower}
+                aria-label="TV power"
+                className="absolute left-[70.2%] top-[86.7%] z-30 h-[6.2%] w-[5.4%] cursor-pointer rounded-full bg-transparent"
               />
             </div>
 
@@ -883,9 +898,9 @@ export function BroadcastConsole() {
 
                 {/* body */}
 
-                <div className="relative rounded-[34px] border-2 border-[#080808] bg-[#1b1b1a] px-5 pb-6 pt-5 shadow-[0_28px_55px_rgba(0,0,0,.72)]">
+                <div className="broadcast-remote relative rounded-[34px] border-2 border-[#080808] bg-[#1b1b1a] px-5 pb-6 pt-5 shadow-[0_28px_55px_rgba(0,0,0,.72)]">
 
-                  <div className="pointer-events-none absolute inset-[6px] rounded-[29px] border border-white/[0.07]" />
+                  <div className="broadcast-remote-face pointer-events-none absolute inset-[6px] rounded-[29px] border border-white/[0.07]" />
 
 
                   {/* signal LED */}
@@ -925,7 +940,7 @@ export function BroadcastConsole() {
 
                   {/* display */}
 
-                  <div className="rounded-[10px] border border-black bg-[#070707] p-2 shadow-[inset_0_3px_8px_rgba(0,0,0,.9)]">
+                  <div className="broadcast-remote-display rounded-[10px] border border-black bg-[#070707] p-2 shadow-[inset_0_3px_8px_rgba(0,0,0,.9)]">
 
                     <div className="rounded-[4px] border border-white/10 bg-[#101010] px-3 py-3">
 
@@ -959,7 +974,7 @@ export function BroadcastConsole() {
                             ? "START"
                             : view === "AFFILIATE_INTRO" ||
                                 view === "AFFILIATE_DIRECTORY"
-                              ? "AFFILIATE"
+                              ? "CURATED ARTISTS"
                               : identity}
                         </span>
 
@@ -986,7 +1001,7 @@ export function BroadcastConsole() {
                     <button
                       type="button"
                       onClick={togglePower}
-                      className="remote-black-button text-[15px] font-bold uppercase text-[#e2d8c2]"
+                      className="remote-black-button remote-power-button text-[15px] font-bold uppercase text-[#e2d8c2]"
                     >
                       POWER
                     </button>
@@ -996,7 +1011,7 @@ export function BroadcastConsole() {
 
                   {/* channel */}
 
-                  <div className="mt-4 rounded-[13px] border border-white/[0.07] bg-[#242424] p-3">
+                  <div className="broadcast-remote-channel-well mt-4 rounded-[13px] border border-white/[0.07] bg-[#242424] p-3">
 
                     <p className="mb-2 text-center font-mono text-[7px] uppercase tracking-[0.2em] text-white/27">
                       CHANNEL
@@ -1028,29 +1043,29 @@ export function BroadcastConsole() {
 
                   {/* dpad */}
                   <div className="mt-4 flex justify-center">
-                    <div className="relative h-[115px] w-[115px] rounded-full border-2 border-black bg-[#101010] shadow-[inset_0_5px_10px_rgba(0,0,0,.85)]">
+                    <div className="broadcast-remote-dpad relative h-[115px] w-[115px] rounded-full border-2 border-black bg-[#101010] shadow-[inset_0_5px_10px_rgba(0,0,0,.85)]">
                       <button type="button" onClick={() => navigateMenu(-1)} className="absolute left-1/2 top-3 -translate-x-1/2 font-mono text-[13px] text-white/45 hover:text-white">▲</button>
                       <button type="button" onClick={() => navigateMenu(1)} className="absolute bottom-3 left-1/2 -translate-x-1/2 font-mono text-[13px] text-white/45 hover:text-white">▼</button>
                       <button type="button" className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-[13px] text-white/45 hover:text-white">◀</button>
                       <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[13px] text-white/45 hover:text-white">▶</button>
-                      <button type="button" onClick={selectMenuItem} className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-black bg-[#282828]">
+                      <button type="button" onClick={selectMenuItem} className="broadcast-remote-ok absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-black bg-[#282828]">
                         <span className="font-mono text-[9px] font-bold tracking-[0.15em] text-white/55">OK</span>
                       </button>
                     </div>
                   </div>
                   {/* destinations */}
-                  <div className="mt-4">
+                  <div className="broadcast-remote-custom mt-4">
                     <p className="mb-2 font-mono text-[13px] uppercase tracking-[0.08em] text-white/55">Destination</p>
                     <div className="grid grid-cols-3 gap-2">
                       <button type="button" onClick={() => openSection("MUSIC")} className={`remote-destination-button ${view === "SONGS_MENU" ? "remote-destination-active" : ""}`}>MUSIC</button>
                       <button type="button" onClick={() => openSection("VIDEOS")} className={`remote-destination-button ${view === "VIDEOS_MENU" ? "remote-destination-active" : ""}`}>VIDEOS</button>
                       <div className="flex flex-col gap-2">
                         <button type="button" onClick={goBack} className="remote-destination-button py-1">BACK</button>
-                        <button type="button" onClick={openAffiliateIntro} className={`remote-destination-button ${view === "AFFILIATE_INTRO" || view === "AFFILIATE_DIRECTORY" || signalSource === "affiliate" ? "remote-destination-active" : ""}`}>AFFILIATE</button>
+                        <button type="button" onClick={openAffiliateIntro} className={`remote-destination-button ${view === "AFFILIATE_INTRO" || view === "AFFILIATE_DIRECTORY" || signalSource === "affiliate" ? "remote-destination-active" : ""}`}>EXTRA</button>
                       </div>
                     </div>
                   </div>
-                  <div className="mt-5 border-t border-white/[0.07] pt-4">
+                  <div className="broadcast-remote-volume mt-5 border-t border-white/[0.07] pt-4">
                     <div className="mb-3 flex items-center justify-between font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-white/55">
                       <span>Volume</span>
                       <span className="text-[12px] text-[#c5a565]/80">{Math.round(volume * 100).toString().padStart(3, "0")}%</span>
@@ -1144,11 +1159,11 @@ export function BroadcastConsole() {
           {view === "HOME"
             ? "HOME / START"
             : view === "AFFILIATE_INTRO"
-              ? "AFFILIATE / START"
+              ? "CURATED ARTISTS / START"
             : view === "AFFILIATE_DIRECTORY"
-              ? "AFFILIATE DIRECTORY"
+              ? "CURATED ARTISTS"
               : signalSource === "affiliate"
-                ? `AFFILIATE / ${identity}`
+                ? `CURATED ARTISTS / ${identity}`
                 : `${channelLabel} / ${member.name}`}
         </span>
         <span>{powerOn ? "signal detected" : "transmission ended"}</span>

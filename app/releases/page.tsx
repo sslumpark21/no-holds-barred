@@ -3,8 +3,8 @@ import { ReleaseCard } from "@/components/release-card"
 import { releases } from "@/lib/data"
 
 export const metadata: Metadata = {
-  title: "Releases — no.holds.barred",
-  description: "The complete no.holds.barred discography. Albums, EPs, singles and compilations.",
+  title: "Releases — no.holds.barred.",
+  description: "Music and other releases from no.holds.barred.",
 }
 
 export default function ReleasesPage() {
@@ -14,11 +14,11 @@ export default function ReleasesPage() {
     <main>
       <header className="px-4 md:px-6 pt-16 md:pt-24 pb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
-          <p className="eyebrow text-muted-ink mb-4">Discography</p>
+          <p className="eyebrow text-muted-ink mb-4">Selected output</p>
           <h1 className="font-display display-huge text-6xl md:text-9xl">Releases</h1>
         </div>
         <p className="eyebrow text-muted-ink">
-          {releases.length} catalogue entries · 2024 — 2026
+          {releases.length} releases · 2024 — 2026
         </p>
       </header>
 

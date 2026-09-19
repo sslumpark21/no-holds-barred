@@ -5,7 +5,7 @@ const COLS = [
     title: "Explore",
     links: [
       { label: "Artists", href: "/artists" },
-      { label: "Affiliates", href: "/affiliates" },
+      { label: "Curated Artists", href: "/affiliates" },
       { label: "Releases", href: "/releases" },
     ],
   },
@@ -34,7 +34,7 @@ export function SiteFooter() {
         <div className="grid gap-12 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
           <div>
             <p className="font-display text-3xl md:text-4xl leading-none uppercase max-w-md">
-              An independent music label &amp; creative collective.
+              An independent creative brand &amp; collective.
             </p>
             <p className="mt-6 text-sm text-paper/60 max-w-sm leading-relaxed">
               Music, art and culture. Curated, not corporate. Sign transmissions arrive
@@ -59,7 +59,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-16 pt-6 border-t border-paper/15 flex flex-col md:flex-row justify-between gap-3 text-xs text-paper/50">
-          <span>© {new Date().getFullYear()} no.holds.barred</span>
+          <span>© {new Date().getFullYear()} no.holds.barred.</span>
           <span className="eyebrow">Music / Art / Culture</span>
         </div>
       </div>

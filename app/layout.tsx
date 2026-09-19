@@ -9,7 +9,7 @@ import { SiteHeader } from "@/components/site-header"
 export const metadata: Metadata = {
   title: "no.holds.barred.",
   description:
-    "Independent music label and multidisciplinary creative collective.",
+    "no.holds.barred. is an independent creative brand and multidisciplinary collective.",
 }
 
 export default function RootLayout({

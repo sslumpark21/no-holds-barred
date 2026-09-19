@@ -961,6 +961,126 @@ img {
    REMOTE CONTROLS
    ========================================================= */
 
+.broadcast-remote {
+  background: linear-gradient(155deg, #292a27 0%, #20211f 28%, #191a18 72%, #111210 100%);
+  box-shadow: inset 0 2px 1px rgba(216, 205, 178, 0.15),
+    inset 2px 0 3px rgba(192, 183, 157, 0.06),
+    inset -3px -5px 7px rgba(0, 0, 0, 0.6),
+    0 28px 55px rgba(0, 0, 0, 0.72);
+}
+
+.broadcast-remote::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(103deg, transparent 0 3px, rgba(225, 214, 184, 0.012) 4px, transparent 5px 9px);
+  opacity: 0.55;
+}
+
+.broadcast-remote-face {
+  box-shadow: inset 0 1px 2px rgba(221, 208, 177, 0.1),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.45);
+}
+
+.broadcast-remote-display {
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(208, 196, 167, 0.08);
+}
+
+.broadcast-remote-display > div {
+  background: linear-gradient(170deg, #191a16, #10110f 72%);
+  border-color: rgba(196, 188, 166, 0.1);
+}
+
+.broadcast-remote button {
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6), 0 0 1px rgba(217, 203, 171, 0.14);
+}
+
+.broadcast-remote .remote-black-button,
+.broadcast-remote .remote-direction-button {
+  color: #c8bea8;
+  background: linear-gradient(175deg, #343530, #242521 46%, #1b1c19);
+  border-color: #11120f;
+  box-shadow: inset 0 1px 1px rgba(215, 204, 174, 0.14),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.65),
+    0 2px 1px rgba(0, 0, 0, 0.65);
+}
+
+.broadcast-remote .remote-black-button:hover,
+.broadcast-remote .remote-direction-button:hover {
+  color: #e6d9bd;
+  background: #353630;
+}
+
+.broadcast-remote .remote-power-button {
+  color: #e0c5b7;
+  background: linear-gradient(175deg, #633b37, #482923 50%, #35201c);
+  border-color: #211513;
+}
+
+.broadcast-remote .remote-power-button:hover {
+  background: #5b3631;
+  color: #f0d9c9;
+}
+
+.broadcast-remote-channel-well {
+  background: linear-gradient(170deg, #252622, #1c1d1a);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.65),
+    inset 0 -1px 1px rgba(207, 195, 164, 0.08);
+}
+
+.broadcast-remote-dpad {
+  background: radial-gradient(circle at 42% 35%, #292a25, #191a17 65%, #0e0f0d);
+  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.86),
+    inset 0 -1px 1px rgba(201, 190, 159, 0.14),
+    0 1px 0 rgba(203, 190, 156, 0.1);
+}
+
+.broadcast-remote-dpad > button:not(.broadcast-remote-ok) {
+  color: #beb39b;
+}
+
+.broadcast-remote .broadcast-remote-ok {
+  color: #d7cbb2;
+  background: linear-gradient(170deg, #3a3b35, #262722 65%, #1d1e1b);
+  box-shadow: inset 0 1px 1px rgba(221, 208, 177, 0.17),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.65),
+    0 2px 2px rgba(0, 0, 0, 0.65);
+}
+
+.broadcast-remote-ok span {
+  color: #d6c9ad;
+}
+
+.broadcast-remote-custom .remote-destination-button {
+  color: #d5c9ad;
+  background: linear-gradient(175deg, #35332e, #292824 55%, #22211e);
+  border-color: #121310;
+  box-shadow: inset 0 1px 1px rgba(218, 202, 166, 0.1),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.62),
+    0 1px 1px rgba(0, 0, 0, 0.6);
+}
+
+.broadcast-remote-custom .remote-destination-button:hover {
+  color: #ecdfc1;
+  background: #393630;
+}
+
+.broadcast-remote-custom .remote-destination-active,
+.broadcast-remote-custom .remote-destination-active:hover {
+  color: #f0ddbd;
+  background: linear-gradient(175deg, #574039, #3b2c28);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(201, 151, 115, 0.23),
+    0 1px 1px rgba(0, 0, 0, 0.55);
+}
+
+.broadcast-remote-volume {
+  border-color: rgba(198, 184, 152, 0.1);
+}
+
 .remote-black-button {
   min-height:
     44px;

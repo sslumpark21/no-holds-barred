@@ -3,7 +3,7 @@ import { JournalIndex } from "@/components/journal-index"
 import { journal } from "@/lib/data"
 
 export const metadata: Metadata = {
-  title: "Journal — no.holds.barred",
+  title: "Journal — no.holds.barred.",
   description: "Interviews, studio visits, release stories, photography, essays, playlists and event recaps.",
 }
 

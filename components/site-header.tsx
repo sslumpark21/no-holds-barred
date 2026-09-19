@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 
 const navigation = [
   {
-    label: "Affiliates",
+    label: "Curated Artists",
     href: "/affiliates",
   },
   {

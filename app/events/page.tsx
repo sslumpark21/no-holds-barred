@@ -3,8 +3,8 @@ import { EventRow } from "@/components/event-row"
 import { events } from "@/lib/data"
 
 export const metadata: Metadata = {
-  title: "Events — no.holds.barred",
-  description: "Upcoming transmissions and past events from the no.holds.barred collective.",
+  title: "Events — no.holds.barred.",
+  description: "Upcoming transmissions and past events from no.holds.barred.",
 }
 
 export default function EventsPage() {

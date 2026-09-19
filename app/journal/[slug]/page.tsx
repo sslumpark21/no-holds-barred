@@ -12,8 +12,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
   const entry = getJournalEntry(slug)
-  if (!entry) return { title: "Journal — no.holds.barred" }
-  return { title: `${entry.title} — no.holds.barred`, description: entry.excerpt }
+  if (!entry) return { title: "Journal — no.holds.barred." }
+  return { title: `${entry.title} — no.holds.barred.`, description: entry.excerpt }
 }
 
 export default async function JournalEntryPage({ params }: { params: Promise<{ slug: string }> }) {
