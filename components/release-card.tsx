@@ -1,12 +1,23 @@
 import Image from "next/image"
 import Link from "next/link"
 import type { Release } from "@/lib/types"
+import type { ReactNode } from "react"
 
-export function ReleaseCard({ release, sleeve = false }: { release: Release; sleeve?: boolean }) {
+function SleeveFrame({ href, onSelect, selected, children, className }: {
+  href: string; onSelect?: () => void; selected?: boolean; children: ReactNode; className: string
+}) {
+  return onSelect
+    ? <button type="button" onClick={onSelect} aria-pressed={selected} className={`${className} text-left ${selected ? "outline outline-2 outline-offset-4 outline-[#a68b4d]" : ""}`}>{children}</button>
+    : <Link href={href} className={className}>{children}</Link>
+}
+
+export function ReleaseCard({ release, sleeve = false, onSelect, selected }: { release: Release; sleeve?: boolean; onSelect?: () => void; selected?: boolean }) {
   if (sleeve) {
     return (
-      <Link
+      <SleeveFrame
         href={`/releases/${release.slug}`}
+        onSelect={onSelect}
+        selected={selected}
         className="group relative block min-w-0 w-[77%] transition-transform duration-[400ms] ease-out hover:z-10 hover:-translate-y-1.5 hover:scale-[1.015] focus-visible:z-10 focus-visible:-translate-y-1.5 focus-visible:scale-[1.015] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-current motion-reduce:transition-none"
       >
         <div className="relative aspect-square w-full overflow-visible">
@@ -43,7 +54,7 @@ export function ReleaseCard({ release, sleeve = false }: { release: Release; sle
           <p className="mt-1 truncate text-xs text-muted-ink">{release.artistName}</p>
           <p className="eyebrow mt-2 text-muted-ink">{release.type}</p>
         </div>
-      </Link>
+      </SleeveFrame>
     )
   }
 

@@ -3,14 +3,18 @@
 import Image from "next/image"
 import {
   useEffect,
-  useLayoutEffect,
+  useReducer,
   useRef,
   useState,
   type CSSProperties,
 } from "react"
 
 import { artists, releases } from "@/lib/data"
-import type { Release } from "@/lib/types"
+import { archiveArtists } from "@/lib/archive"
+import type { TvArtistContext } from "@/lib/types"
+import { artistPlaylist } from "@/lib/broadcast"
+import { BroadcastVideo, type VideoControls } from "./broadcast-video"
+import { YouTubePlayer, type YouTubeControls } from "./youtube-player"
 import { useAudio } from "@/components/audio/audio-provider"
 
 const lightByChannel = [
@@ -19,151 +23,169 @@ const lightByChannel = [
   { glow: "rgba(203, 181, 111, 0.28)", edge: "rgba(140, 92, 50, 0.12)", haze: "rgba(161, 133, 77, 0.12)" },
 ]
 
-type View =
-  | "HOME"
-  | "CHANNEL_MENU"
-  | "SONGS_MENU"
-  | "ALBUMS_EPS"
-  | "SINGLES"
-  | "RELEASE_TRACKS"
-  | "EXCLUSIVE_PREVIEW"
-  | "VIDEOS_MENU"
-  | "VIDEO_PLAYER"
-  | "AFFILIATE_INTRO"
-  | "AFFILIATE_DIRECTORY"
-
-type SignalSource = "member" | "affiliate"
 type PowerPhase = "on" | "starting" | "stopping" | "off"
-
-const affiliateDirectory = [
-  { id: "andreas-shinso", name: "Andreas Shinso" },
-  { id: "cyupercah", name: "Cyupercah" },
-  { id: "moise6969", name: "moise6969" },
-  { id: "2007", name: "2007" },
-]
-
-type ChannelMedia = {
-  albumsEps: Release[]
-  singles: Release[]
-  exclusivePreview: string[]
-  videos: { title: string; url: string }[]
+type Mode = "music" | "video"
+type OptionsCategory = "singles" | "projects"
+type Screen = "broadcast" | "options-categories" | "options-release-list" | "options-tracks" | "video-list" | "video-player" | "archive-list" | "exclusive-artists" | "exclusive-list" | "exclusive-item"
+type RemoteDestination = "music" | "videos" | "options" | "archive" | "exclusive"
+function isRemoteDestinationActive(destination: RemoteDestination, tv: TvState) {
+  switch (destination) {
+    case "music": return tv.screen === "broadcast" && tv.mode === "music"
+    case "videos": return tv.screen === "video-list" || tv.screen === "video-player"
+    case "options": return tv.screen.startsWith("options-")
+    case "archive": return tv.screen === "archive-list"
+    case "exclusive": return tv.screen.startsWith("exclusive-")
+  }
 }
-
-type CurrentChannel = {
-  kind: SignalSource
-  id: string
-  name: string
-  label: string
-  media: ChannelMedia
+function destinationAllowsStation(screen: Screen, mode: Mode) {
+  return (screen === "broadcast" && mode === "music") || screen.startsWith("options-")
 }
-
-const emptyMedia: ChannelMedia = {
-  albumsEps: [],
-  singles: [],
-  exclusivePreview: [],
-  videos: [],
+function canOpenMusicOptions(tv: TvState) {
+  const context = tv.artistContext
+  const validArtist = context.kind === "official"
+    ? artists.some((artist) => artist.slug === context.slug)
+    : archiveArtists.some((artist) => artist.id === context.id)
+  return validArtist &&
+    ((tv.screen === "broadcast" && tv.mode === "music") || tv.screen.startsWith("options-"))
 }
-
-const affiliateMedia: Record<string, ChannelMedia> = {}
-
+const exclusiveArtistSlugs = ["moxli", "danoot", "matei"] as const
+type TvState = { channel: number; artistContext: TvArtistContext; mode: Mode; screen: Screen; cursor: number; archive: number; exclusive: number; exclusiveArtistSlug: string; optionsCategory: OptionsCategory; optionsReleaseSlug: string | null; video: number }
+type TvAction =
+  | { type: "broadcast"; mode: Mode; channel?: number }
+  | { type: "channel"; channel: number; slug: string; exitArchive: boolean }
+  | { type: "archive-channel"; id: string; index: number; screen: Screen }
+  | { type: "open-archive"; index: number }
+  | { type: "screen"; screen: Screen }
+  | { type: "options-category"; category: OptionsCategory }
+  | { type: "options-release"; slug: string }
+  | { type: "video-select"; index: number }
+  | { type: "cursor"; direction: number; count: number }
+  | { type: "select" }
+  | { type: "back" }
+function tvReducer(state: TvState, action: TvAction): TvState {
+  switch (action.type) {
+    case "broadcast": return { ...state, channel: action.channel ?? state.channel, mode: action.mode, screen: "broadcast", cursor: 0 }
+    case "channel": return action.exitArchive
+      ? { ...state, channel: action.channel, artistContext: { kind: "official", slug: action.slug }, mode: "music", screen: "broadcast", cursor: 0 }
+      : { ...state, channel: action.channel, artistContext: { kind: "official", slug: action.slug }, cursor: 0 }
+    case "archive-channel": return { ...state, artistContext: { kind: "archive", id: action.id }, archive: action.index, screen: action.screen, cursor: 0 }
+    case "screen": return { ...state, screen: action.screen, cursor: action.screen === "archive-list" ? state.archive : 0 }
+    case "open-archive": return { ...state, screen: "archive-list", archive: action.index, cursor: action.index }
+    case "options-category": return { ...state, screen: "options-release-list", optionsCategory: action.category, cursor: 0, optionsReleaseSlug: null }
+    case "options-release": return { ...state, screen: "options-tracks", optionsReleaseSlug: action.slug, cursor: 0 }
+    case "video-select": return { ...state, screen: "video-player", video: action.index }
+    case "cursor": return action.count ? { ...state, cursor: (state.cursor + action.direction + action.count) % action.count } : state
+    case "select": return state.screen === "archive-list"
+      ? { ...state, artistContext: { kind: "archive", id: archiveArtists[state.cursor].id }, archive: state.cursor, mode: "music", screen: "broadcast", cursor: 0 }
+      : state.screen === "exclusive-artists" ? { ...state, screen: "exclusive-list", exclusiveArtistSlug: exclusiveArtistSlugs[state.cursor], cursor: 0 }
+      : state.screen === "exclusive-list" ? { ...state, screen: "exclusive-item", exclusive: state.cursor } : state
+    case "back": return state.screen === "options-tracks" ? { ...state, screen: "options-release-list", cursor: 0 }
+      : state.screen === "options-release-list" ? { ...state, screen: "options-categories", cursor: state.optionsCategory === "singles" ? 0 : 1 }
+      : state.screen === "options-categories" ? { ...state, screen: "broadcast", cursor: 0 }
+      : state.screen === "video-player" ? { ...state, screen: "video-list", cursor: state.video }
+      : state.screen === "video-list" ? { ...state, screen: "broadcast", mode: "music", cursor: 0 }
+      : state.screen === "exclusive-item" ? { ...state, screen: "exclusive-list", cursor: state.exclusive }
+      : state.screen === "exclusive-list" ? { ...state, screen: "exclusive-artists", cursor: exclusiveArtistSlugs.findIndex((slug) => slug === state.exclusiveArtistSlug) }
+      : { ...state, screen: "broadcast" }
+  }
+}
 const VOLUME_KNOB_SIZE = 44
 const VOLUME_KNOB_INSET = VOLUME_KNOB_SIZE / 2
-
 export function BroadcastConsole() {
-  const { volume, setVolume, playQueue } = useAudio()
-  const [powerOn, setPowerOn] = useState(true)
-  const [powerPhase, setPowerPhase] = useState<PowerPhase>("on")
-  const [view, setView] = useState<View>("HOME")
-  const [selectedChannel, setSelectedChannel] = useState(0)
-  const [affiliateIndex, setAffiliateIndex] = useState<number | null>(null)
-  const [menuIndex, setMenuIndex] = useState(0)
-  const [selectedReleaseSlug, setSelectedReleaseSlug] = useState<string | null>(null)
-  const [releaseReturnView, setReleaseReturnView] = useState<"ALBUMS_EPS" | "SINGLES">("ALBUMS_EPS")
-  const [signalSource, setSignalSource] = useState<SignalSource>("member")
+  const { volume, setVolume, current, owner, stationMode, stationArtistSlug, needsGesture, mediaError,
+    startStation, restoreStation, playExclusive, suspend, resume, previousTrack, nextTrack, selectTrack,
+    tvPoweredOn, tvChannel, tvMode, setTvPoweredOn, setTvChannel, setTvMode, tvArtistContext, setTvArtistContext,
+    lastOfficialArtistSlug } = useAudio()
+  const persistedChannel = tvChannel ?? Math.max(0, artists.findIndex((artist) => artist.slug === stationArtistSlug))
+  const [tv, dispatch] = useReducer(tvReducer, {
+    artistContext: tvArtistContext,
+    channel: persistedChannel,
+    mode: tvMode, screen: "broadcast", cursor: 0, archive: 0, exclusive: 0, exclusiveArtistSlug: "moxli", optionsCategory: "singles", optionsReleaseSlug: null, video: 0,
+  })
+  const [powerOn, setPowerOn] = useState(tvPoweredOn)
+  const [powerPhase, setPowerPhase] = useState<PowerPhase>(tvPoweredOn ? "on" : "off")
+  const phaseRef = useRef<PowerPhase>(powerPhase)
+  const tvRef = useRef(tv)
+  tvRef.current = tv
   const [transitioning, setTransitioning] = useState(false)
   const [transitionId, setTransitionId] = useState(0)
   const [signalActive, setSignalActive] = useState(false)
   const [flashActive, setFlashActive] = useState(false)
   const remoteRef = useRef<HTMLDivElement | null>(null)
-  const channelRef = useRef(0)
   const transitionTimerRef = useRef<number | null>(null)
   const powerTimerRef = useRef<number | null>(null)
   const volumeBarRef = useRef<HTMLDivElement | null>(null)
-  const deepLinkHandledRef = useRef(false)
-
-  const member = artists[selectedChannel]
+  const exclusiveVideoRef = useRef<VideoControls | null>(null)
+  const youtubeRef = useRef<YouTubeControls | null>(null)
+  const initialized = useRef(false)
+  const specialReturnVideoScreen = useRef<"video-list" | "video-player">("video-list")
+  const selectedChannel = tv.channel
+  const artistContext = tv.artistContext
+  const activeArtist = artistContext.kind === "official"
+    ? artists.find((artist) => artist.slug === artistContext.slug) ?? artists[selectedChannel]
+    : archiveArtists.find((artist) => artist.id === artistContext.id) ?? archiveArtists[0]
+  const activeArtistSlug = artistContext.kind === "official" ? artistContext.slug : artistContext.id
+  const activeReleaseSlugs = activeArtist.releaseSlugs
+  const activeVideos = activeArtist.videos
   const light = lightByChannel[selectedChannel]
-  const affiliate = affiliateIndex === null ? null : affiliateDirectory[affiliateIndex]
-  const memberReleases = member.releaseSlugs
-    .map((slug) => releases.find((release) => release.slug === slug))
-    .filter((release): release is Release => Boolean(release))
-  const officialMedia: ChannelMedia = {
-    albumsEps: memberReleases.filter((release) => release.type !== "Single"),
-    singles: memberReleases.filter((release) => release.type === "Single"),
-    exclusivePreview: member.unreleased.map((track) => track.title),
-    videos: member.videos.map((video) => ({ title: video.title, url: video.id })),
-  }
-  const currentChannel: CurrentChannel = signalSource === "affiliate" && affiliate
-    ? { kind: "affiliate", id: affiliate.id, name: affiliate.name, label: `EX ${String((affiliateIndex ?? 0) + 1).padStart(2, "0")}`, media: affiliateMedia[affiliate.id] ?? emptyMedia }
-    : { kind: "member", id: member.slug, name: member.name, label: `CH ${String(selectedChannel + 1).padStart(2, "0")}`, media: officialMedia }
-  const selectedRelease = [...currentChannel.media.albumsEps, ...currentChannel.media.singles]
-    .find((release) => release.slug === selectedReleaseSlug)
-  const identity = currentChannel.name
-  const channelLabel = currentChannel.label
+  const identity = activeArtist.name
+  const channelLabel = `CH ${String(selectedChannel + 1).padStart(2, "0")}`
+  const exclusiveArtist = artists.find((artist) => artist.slug === tv.exclusiveArtistSlug)!
+  const exclusive = exclusiveArtist.exclusives[tv.exclusive]
+  const musicTrack = current?.artistSlug === activeArtistSlug ? current : null
+  const optionsReleases = releases.filter((release) => activeReleaseSlugs.includes(release.slug) && (tv.optionsCategory === "singles" ? release.type === "Single" : release.type !== "Single"))
+  const optionsRelease = releases.find((release) => release.slug === tv.optionsReleaseSlug && activeReleaseSlugs.includes(release.slug))
+  const video = activeVideos[tv.video]
 
   useEffect(() => {
-    return () => {
-      if (transitionTimerRef.current !== null) {
-        window.clearTimeout(transitionTimerRef.current)
+    // Power, channel, and the station session live in AudioProvider, which survives route changes.
+    // A fresh console reflects that state without rebuilding or restarting the station.
+    phaseRef.current = tvPoweredOn ? "on" : "off"
+    setPowerOn(tvPoweredOn)
+    setPowerPhase(tvPoweredOn ? "on" : "off")
+    if (tvPoweredOn) {
+      if (tvChannel === null) setTvChannel(persistedChannel)
+      if (tv.mode !== "music" || tv.screen !== "broadcast" || tv.channel !== persistedChannel) {
+        dispatch({ type: "broadcast", channel: persistedChannel, mode: "music" })
       }
-      if (powerTimerRef.current !== null) {
-        window.clearTimeout(powerTimerRef.current)
-      }
+      setTvMode("music")
+      setTvArtistContext(tvArtistContext)
+      if (stationMode && owner !== "music") restoreStation(false)
     }
+    // This is intentionally mount-only: route unmounts are not power events.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useLayoutEffect(() => {
-    if (deepLinkHandledRef.current) return
-
+  useEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
     const params = new URLSearchParams(window.location.search)
-    if (params.get("tv") !== "1") return
+    const requestedArtist = artists.findIndex((artist) => artist.slug === params.get("artist"))
+    const requestedRelease = releases.find((release) => release.slug === params.get("release") && release.artistSlug === params.get("artist"))
+    if (params.get("tv") === "1" && requestedArtist >= 0 && (!params.has("release") ||
+      (requestedRelease && artists[requestedArtist].releaseSlugs.includes(requestedRelease.slug)))) {
+      const artist = artists[requestedArtist]
+      const tracks = artistPlaylist(artist, releases)
+      const preferred = tracks.find((track) => track.releaseSlug === requestedRelease?.slug)?.id
+      dispatch({ type: "channel", channel: requestedArtist, slug: artist.slug, exitArchive: true })
+      phaseRef.current = "on"
+      setPowerOn(true)
+      setPowerPhase("on")
+      setTvPoweredOn(true)
+      setTvChannel(requestedArtist)
+      setTvMode("music")
+      setTvArtistContext({ kind: "official", slug: artist.slug })
+      startStation(artist.slug, tracks, preferred, true)
+      for (const key of ["tv", "artist", "mode", "view", "release"]) params.delete(key)
+      const query = params.toString()
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash || "#broadcast"}`)
+    }
+  }, [startStation, stationArtistSlug])
 
-    const artistSlug = params.get("artist")
-    const releaseSlug = params.get("release")
-    const requestedView = params.get("view")
-    const artistIndex = artists.findIndex((artist) => artist.slug === artistSlug)
-    const release = releases.find((entry) => entry.slug === releaseSlug && entry.artistSlug === artistSlug)
-    if (artistIndex < 0 || !release || !artists[artistIndex].releaseSlugs.includes(release.slug)) return
-
-    const releaseView = release.type === "Single" ? "singles" : "albums-eps"
-    if (requestedView !== releaseView) return
-
-    const artistReleases = artists[artistIndex].releaseSlugs
-      .map((slug) => releases.find((entry) => entry.slug === slug))
-      .filter((entry): entry is Release => Boolean(entry))
-      .filter((entry) => releaseView === "singles" ? entry.type === "Single" : entry.type !== "Single")
-    const releaseIndex = artistReleases.findIndex((entry) => entry.slug === release.slug)
-    if (releaseIndex < 0) return
-
-    deepLinkHandledRef.current = true
-    channelRef.current = artistIndex
-    setPowerOn(true)
-    setPowerPhase("on")
-    setSignalSource("member")
-    setAffiliateIndex(null)
-    setSelectedChannel(artistIndex)
-    setMenuIndex(releaseIndex)
-    setView(releaseView === "singles" ? "SINGLES" : "ALBUMS_EPS")
-
-    for (const key of ["tv", "artist", "view", "release"]) params.delete(key)
-    const remainingQuery = params.toString()
-    window.history.replaceState(
-      window.history.state,
-      "",
-      `${window.location.pathname}${remainingQuery ? `?${remainingQuery}` : ""}${window.location.hash || "#broadcast"}`,
-    )
+  useEffect(() => () => {
+    if (transitionTimerRef.current !== null) window.clearTimeout(transitionTimerRef.current)
+    if (powerTimerRef.current !== null) window.clearTimeout(powerTimerRef.current)
   }, [])
-
   useEffect(() => {
     const remote = remoteRef.current
 
@@ -265,235 +287,248 @@ export function BroadcastConsole() {
     }
   }, [])
 
-  const triggerSignal = (
-    callback: () => void
-  ) => {
-    setSignalActive(true)
-    setFlashActive(true)
-
-    window.setTimeout(() => {
-      callback()
-    }, 80)
-
-    window.setTimeout(() => {
-      setSignalActive(false)
-    }, 180)
-
-    window.setTimeout(() => {
-      setFlashActive(false)
-    }, 260)
-  }
-
   const clearTransition = () => {
-    if (transitionTimerRef.current !== null) {
-      window.clearTimeout(transitionTimerRef.current)
-      transitionTimerRef.current = null
-    }
+    if (transitionTimerRef.current !== null) window.clearTimeout(transitionTimerRef.current)
+    transitionTimerRef.current = null
     setTransitioning(false)
+    setSignalActive(false)
+    setFlashActive(false)
   }
-
   const startChannelTransition = () => {
     clearTransition()
-    setTransitionId((current) => current + 1)
+    setTransitionId((value) => value + 1)
     setTransitioning(true)
-    triggerSignal(() => {})
-    transitionTimerRef.current = window.setTimeout(() => {
-      setTransitioning(false)
-      transitionTimerRef.current = null
-    }, 300)
+    setSignalActive(true)
+    setFlashActive(true)
+    transitionTimerRef.current = window.setTimeout(clearTransition, 300)
   }
-
-  const clearPowerTimer = () => {
-    if (powerTimerRef.current !== null) {
-      window.clearTimeout(powerTimerRef.current)
-      powerTimerRef.current = null
+  const stopVideo = () => {
+    exclusiveVideoRef.current?.pause()
+    youtubeRef.current?.pause()
+  }
+  const canControl = () => phaseRef.current === "on"
+  const applyDestinationAudio = (screen: Screen, mode: Mode) => {
+    stopVideo()
+    if (destinationAllowsStation(screen, mode)) {
+      if (stationMode && owner === "music") resume()
+      else restoreStation(true)
+    } else {
+      // Restore metadata after exclusive media without ever starting the station.
+      if (!stationMode) restoreStation(false)
+      suspend(screen.startsWith("video-") || (screen === "broadcast" && mode === "video") ? "video" : "browsing")
     }
   }
-
-  const startPower = () => {
-    clearPowerTimer()
+  const returnBroadcast = (mode: Mode) => {
+    stopVideo()
     clearTransition()
-    setView("HOME")
-    setMenuIndex(0)
-    setPowerOn(true)
-    setPowerPhase("starting")
-    powerTimerRef.current = window.setTimeout(() => {
-      setPowerPhase("on")
-      powerTimerRef.current = null
-    }, 280)
+    setTvMode(mode)
+    setTvChannel(tvRef.current.channel)
+    dispatch({ type: "broadcast", mode })
+    applyDestinationAudio("broadcast", mode)
   }
-
   const goHome = () => {
-    clearTransition()
-    if (powerPhase === "off" || powerPhase === "stopping") {
-      startPower()
+    if (!canControl()) return
+    if (tvRef.current.artistContext.kind === "official") {
+      returnBroadcast("music")
       return
     }
-    setView("HOME")
-    setMenuIndex(0)
-  }
-
-  const play = () => {
+    const artist = artists.find((item) => item.slug === lastOfficialArtistSlug) ?? artists[0]
+    const channel = artists.findIndex((item) => item.slug === artist.slug)
+    stopVideo()
     clearTransition()
-    channelRef.current = 0
-    setSelectedChannel(0)
-    setSignalSource("member")
-    setMenuIndex(0)
-    setView("CHANNEL_MENU")
+    tvRef.current = { ...tvRef.current, artistContext: { kind: "official", slug: artist.slug }, channel, mode: "music", screen: "broadcast", cursor: 0 }
+    dispatch({ type: "channel", channel, slug: artist.slug, exitArchive: true })
+    setTvArtistContext({ kind: "official", slug: artist.slug })
+    setTvChannel(channel)
+    setTvMode("music")
+    startStation(artist.slug, artistPlaylist(artist, releases), undefined, false, true)
   }
-
+  const openSection = (section: "MUSIC" | "VIDEOS") => {
+    if (!canControl()) return
+    if (section === "MUSIC") returnBroadcast("music")
+    else {
+      stopVideo()
+      applyDestinationAudio("video-list", "video")
+      setTvMode("video")
+      dispatch({ type: "broadcast", mode: "video" })
+      dispatch({ type: "screen", screen: "video-list" })
+    }
+  }
   const changeChannel = (direction: -1 | 1) => {
-    if (
-      !powerOn ||
-      powerPhase !== "on" ||
-      view === "HOME" ||
-      view === "AFFILIATE_INTRO" ||
-      view === "AFFILIATE_DIRECTORY"
-    ) return
-
-    const inAffiliateSystem = signalSource === "affiliate"
-
-    if (inAffiliateSystem) {
-      setAffiliateIndex((current) =>
-        ((current ?? 0) + direction + affiliateDirectory.length) %
-        affiliateDirectory.length
-      )
-      setMenuIndex(0)
-      setView("CHANNEL_MENU")
+    if (!canControl() || tvRef.current.screen.startsWith("exclusive") || tvRef.current.screen === "archive-list") return
+    stopVideo()
+    const priorScreen = tvRef.current.screen
+    const activeContext = tvRef.current.artistContext
+    if (activeContext.kind === "archive") {
+      const previousIndex = archiveArtists.findIndex((artist) => artist.id === activeContext.id)
+      const nextIndex = (previousIndex + direction + archiveArtists.length) % archiveArtists.length
+      const artist = archiveArtists[nextIndex]
+      const nextScreen = priorScreen === "video-player" ? "video-list"
+        : priorScreen === "options-tracks" ? "options-release-list" : priorScreen
+      const tracks = artistPlaylist(artist, releases)
+      dispatch({ type: "archive-channel", id: artist.id, index: nextIndex, screen: nextScreen })
+      setTvArtistContext({ kind: "archive", id: artist.id })
+      startStation(artist.id, tracks, undefined, true, destinationAllowsStation(nextScreen, tvRef.current.mode))
+      if (!destinationAllowsStation(nextScreen, tvRef.current.mode)) applyDestinationAudio(nextScreen, tvRef.current.mode)
       startChannelTransition()
       return
     }
-
-    const next =
-      (channelRef.current + direction + artists.length) % artists.length
-    channelRef.current = next
-    setSelectedChannel(next)
-    setSignalSource("member")
-    setMenuIndex(0)
-    setView("CHANNEL_MENU")
-
+    const next = (tvRef.current.channel + direction + artists.length) % artists.length
+    const artist = artists[next]
+    const nextScreen = priorScreen === "video-player" ? "video-list" : priorScreen === "options-tracks" ? "options-release-list" : priorScreen
+    tvRef.current = { ...tvRef.current, channel: next, artistContext: { kind: "official", slug: artist.slug }, screen: nextScreen }
+    dispatch({ type: "channel", channel: next, slug: artist.slug, exitArchive: false })
+    setTvChannel(next)
+    setTvMode(tv.mode)
+    setTvArtistContext({ kind: "official", slug: artist.slug })
+    if (nextScreen !== priorScreen) dispatch({ type: "screen", screen: nextScreen })
+    const allowsStation = destinationAllowsStation(nextScreen, tv.mode)
+    startStation(artist.slug, artistPlaylist(artist, releases), undefined, true, allowsStation)
+    if (!allowsStation) applyDestinationAudio(nextScreen, tv.mode)
     startChannelTransition()
   }
-
-  const navigateMenu = (direction: -1 | 1) => {
-    if (powerPhase !== "on" || transitioning) return
-    if (view === "AFFILIATE_DIRECTORY") {
-      setMenuIndex((current) =>
-        (current + direction + affiliateDirectory.length) %
-        affiliateDirectory.length
-      )
-      return
-    }
-    const count = view === "CHANNEL_MENU" ? 2
-      : view === "SONGS_MENU" ? 3
-      : view === "ALBUMS_EPS" ? currentChannel.media.albumsEps.length
-      : view === "SINGLES" ? currentChannel.media.singles.length
-      : view === "RELEASE_TRACKS" ? selectedRelease?.tracklist.length ?? 0
-      : view === "VIDEOS_MENU" ? currentChannel.media.videos.length
-      : 0
-    if (count > 0) setMenuIndex((current) => (current + direction + count) % count)
-  }
-
-  const goBack = () => {
-    if (powerPhase !== "on" || transitioning) return
-    if (view === "CHANNEL_MENU") {
-      if (signalSource === "affiliate" && affiliateIndex !== null) {
-        setMenuIndex(affiliateIndex)
-        setView("AFFILIATE_DIRECTORY")
-      }
-      return
-    }
-    if (view === "RELEASE_TRACKS") {
-      const releaseList = releaseReturnView === "SINGLES" ? currentChannel.media.singles : currentChannel.media.albumsEps
-      const releaseIndex = releaseList.findIndex((release) => release.slug === selectedReleaseSlug)
-      setMenuIndex(Math.max(0, releaseIndex))
-      setView(releaseReturnView)
-    } else if (view === "SONGS_MENU" || view === "VIDEOS_MENU") {
-      setView("CHANNEL_MENU")
-      setMenuIndex(0)
-    } else if (view === "ALBUMS_EPS" || view === "SINGLES" || view === "EXCLUSIVE_PREVIEW") {
-      setView("SONGS_MENU")
-      setMenuIndex(0)
-    } else if (view === "VIDEO_PLAYER") {
-      setView("VIDEOS_MENU")
-      setMenuIndex(0)
-    }
-  }
-
-  const selectMenuItem = () => {
-    if (powerPhase !== "on" || transitioning) return
-    if (view === "HOME") {
-      play()
-    } else if (view === "AFFILIATE_INTRO") {
-      setMenuIndex(0)
-      setView("AFFILIATE_DIRECTORY")
-    } else if (view === "AFFILIATE_DIRECTORY") {
-      setAffiliateIndex(menuIndex)
-      setSignalSource("affiliate")
-      setMenuIndex(0)
-      setView("CHANNEL_MENU")
-    } else if (view === "CHANNEL_MENU") {
-      setMenuIndex(0)
-      setView(menuIndex === 0 ? "SONGS_MENU" : "VIDEOS_MENU")
-    } else if (view === "SONGS_MENU") {
-      const songsViews: View[] = ["ALBUMS_EPS", "SINGLES", "EXCLUSIVE_PREVIEW"]
-      setView(songsViews[menuIndex])
-      setMenuIndex(0)
-    } else if (view === "ALBUMS_EPS" || view === "SINGLES") {
-      const release = (view === "SINGLES" ? currentChannel.media.singles : currentChannel.media.albumsEps)[menuIndex]
-      if (!release) return
-      setSelectedReleaseSlug(release.slug)
-      setReleaseReturnView(view)
-      setMenuIndex(0)
-      setView("RELEASE_TRACKS")
-    } else if (view === "RELEASE_TRACKS" && selectedRelease) {
-      const tracks = selectedRelease.tracklist.filter((track) => Boolean(track.audioUrl))
-      const selectedTrack = selectedRelease.tracklist[menuIndex]
-      const startIndex = tracks.findIndex((track) => track.id === selectedTrack?.id)
-      if (startIndex < 0) return
-      playQueue(tracks.map((track) => ({
-        id: track.id,
-        title: track.title,
-        artist: selectedRelease.artistName,
-        artwork: selectedRelease.artwork,
-        audioUrl: track.audioUrl,
-      })), startIndex)
-    } else if (view === "VIDEOS_MENU" && currentChannel.media.videos.length > 0) {
-      setView("VIDEO_PLAYER")
-    }
-  }
-
-  const openSection = (section: "MUSIC" | "VIDEOS") => {
-    if (
-      powerPhase !== "on" ||
-      transitioning ||
-      view === "HOME" ||
-      view === "AFFILIATE_INTRO" ||
-      view === "AFFILIATE_DIRECTORY"
-    ) return
-    setMenuIndex(0)
-    setView(section === "MUSIC" ? "SONGS_MENU" : "VIDEOS_MENU")
-  }
-
-  const openAffiliateIntro = () => {
-    if (powerPhase !== "on" || transitioning) return
+  const openSpecial = (screen: "archive-list" | "exclusive-artists") => {
+    if (!canControl()) return
+    stopVideo()
     clearTransition()
-    setView("AFFILIATE_INTRO")
+    if (tv.mode === "video") specialReturnVideoScreen.current = tv.screen === "video-player" ? "video-player" : "video-list"
+    applyDestinationAudio(screen, tv.mode)
+    if (screen === "archive-list") {
+      const context = tv.artistContext
+      const archiveIndex = context.kind === "archive" ? archiveArtists.findIndex((artist) => artist.id === context.id) : tv.archive
+      dispatch({ type: "open-archive", index: Math.max(0, archiveIndex) })
+    } else dispatch({ type: "screen", screen })
   }
-
+  const navigateMenu = (direction: -1 | 1) => {
+    if (!canControl()) return
+    const count = tv.screen === "options-categories" ? 2
+      : tv.screen === "options-release-list" ? optionsReleases.length
+      : tv.screen === "options-tracks" ? optionsRelease?.tracklist.filter((track) => track.audioUrl.trim()).length ?? 0
+      : tv.screen === "video-list" ? activeVideos.length
+      : tv.screen === "archive-list" ? archiveArtists.length
+      : tv.screen === "exclusive-artists" ? exclusiveArtistSlugs.length
+      : tv.screen === "exclusive-list" ? exclusiveArtist.exclusives.length : 0
+    dispatch({ type: "cursor", direction, count })
+  }
+  const goBack = () => {
+    if (!canControl()) return
+    if (tv.screen === "broadcast") {
+      if (tv.artistContext.kind === "archive") openSpecial("archive-list")
+      return
+    }
+    if (tv.screen === "archive-list") {
+      if (tv.mode === "video") {
+        applyDestinationAudio(specialReturnVideoScreen.current, "video")
+        dispatch({ type: "broadcast", mode: "video" })
+        dispatch({ type: "screen", screen: specialReturnVideoScreen.current })
+      } else returnBroadcast("music")
+      return
+    }
+    if (tv.screen === "options-categories") {
+      returnBroadcast("music")
+      return
+    }
+    if (tv.screen === "video-list") {
+      returnBroadcast("music")
+      return
+    }
+    if (tv.screen === "exclusive-artists") {
+      if (tv.mode === "video") {
+        applyDestinationAudio(specialReturnVideoScreen.current, "video"); dispatch({ type: "screen", screen: specialReturnVideoScreen.current })
+      } else returnBroadcast("music")
+      return
+    }
+    if (tv.screen === "video-player") stopVideo()
+    if (tv.screen === "exclusive-item") {
+      stopVideo()
+      applyDestinationAudio("exclusive-list", tv.mode)
+    }
+    dispatch({ type: "back" })
+  }
+  const selectMenuItem = () => {
+    if (!canControl()) return
+    if (tv.screen === "video-player") { youtubeRef.current?.toggle(); return }
+    if (tv.screen === "broadcast") {
+      if (tv.mode === "music") resume()
+    } else if (tv.screen === "options-categories") {
+      dispatch({ type: "options-category", category: tv.cursor === 0 ? "singles" : "projects" })
+    } else if (tv.screen === "options-release-list") {
+      const release = optionsReleases[tv.cursor]
+      if (release) dispatch({ type: "options-release", slug: release.slug })
+    } else if (tv.screen === "options-tracks") {
+      const track = optionsRelease?.tracklist.filter((item) => item.audioUrl.trim())[tv.cursor]
+      if (!track) return
+      const queue = artistPlaylist(activeArtist, releases)
+      const index = queue.findIndex((item) => item.id === track.id)
+      if (index >= 0 && stationMode && current?.artistSlug === activeArtistSlug) selectTrack(index)
+      else if (index >= 0) startStation(activeArtistSlug, queue, track.id, false, true)
+    } else if (tv.screen === "video-list") {
+      if (activeVideos[tv.cursor]) dispatch({ type: "video-select", index: tv.cursor })
+    } else if (tv.screen === "archive-list") {
+      const selected = archiveArtists[tv.cursor]
+      if (!selected) return
+      setTvArtistContext({ kind: "archive", id: selected.id })
+      setTvMode("music")
+      startStation(selected.id, artistPlaylist(selected, releases), undefined, true, true)
+      dispatch({ type: "select" })
+    } else if (tv.screen === "exclusive-artists") dispatch({ type: "select" })
+    else if (tv.screen === "exclusive-list") {
+      const item = exclusiveArtist.exclusives[tv.cursor]
+      if (!item) return
+      if (item.kind === "audio") {
+        playExclusive({ id: item.id, title: item.title, artist: exclusiveArtist.name, artistSlug: exclusiveArtist.slug, artwork: item.artwork ?? "", audioUrl: item.audioUrl })
+      } else if (item.kind === "video") suspend("video")
+      dispatch({ type: "select" })
+    } else if (tv.screen === "exclusive-item") {
+      if (exclusive?.kind === "audio") resume()
+      if (exclusive?.kind === "video") exclusiveVideoRef.current?.resume()
+    }
+  }
+  const skipTrack = (direction: -1 | 1) => {
+    if (!canControl()) return
+    if (tv.screen === "video-player") { youtubeRef.current?.seekBy(direction * 10); return }
+    if (!destinationAllowsStation(tv.screen, tv.mode) || owner !== "music" || !stationMode) return
+    if (direction < 0) previousTrack()
+    else nextTrack()
+  }
+  const openOptions = () => {
+    if (!canOpenMusicOptions(tv) || !canControl()) return
+    if (!tv.screen.startsWith("options-")) applyDestinationAudio("options-categories", "music")
+    setTvMode("music")
+    dispatch({ type: "broadcast", mode: "music" })
+    dispatch({ type: "screen", screen: "options-categories" })
+  }
   const togglePower = () => {
     clearTransition()
-    if (powerPhase === "off" || powerPhase === "stopping") {
-      startPower()
-      return
+    stopVideo()
+    youtubeRef.current?.pause()
+    if (powerTimerRef.current !== null) window.clearTimeout(powerTimerRef.current)
+    if (phaseRef.current === "off" || phaseRef.current === "stopping") {
+      phaseRef.current = "starting"
+      setTvPoweredOn(true)
+      setTvChannel(tv.channel)
+      setTvMode("music")
+      setPowerOn(true)
+      setPowerPhase("starting")
+      dispatch({ type: "broadcast", mode: "music" })
+      startStation(activeArtistSlug, artistPlaylist(activeArtist, releases))
+      powerTimerRef.current = window.setTimeout(() => {
+        phaseRef.current = "on"
+        setPowerPhase("on")
+        powerTimerRef.current = null
+      }, 280)
+    } else {
+      setTvPoweredOn(false)
+      suspend("off")
+      phaseRef.current = "stopping"
+      setPowerPhase("stopping")
+      powerTimerRef.current = window.setTimeout(() => {
+        phaseRef.current = "off"
+        setPowerOn(false)
+        setPowerPhase("off")
+        powerTimerRef.current = null
+      }, 260)
     }
-    clearPowerTimer()
-    setPowerPhase("stopping")
-    powerTimerRef.current = window.setTimeout(() => {
-      setPowerOn(false)
-      setPowerPhase("off")
-      powerTimerRef.current = null
-    }, 260)
   }
   const remoteStyle = {
     "--rx": "0deg",
@@ -509,6 +544,7 @@ export function BroadcastConsole() {
     const usableWidth = Math.max(1, rect.width - VOLUME_KNOB_SIZE)
     const next = Math.min(1, Math.max(0, (event.clientX - rect.left - VOLUME_KNOB_INSET) / usableWidth))
     setVolume(next)
+    if (tv.screen === "video-player") youtubeRef.current?.setVolume(next)
   }
 
   return (
@@ -820,124 +856,70 @@ export function BroadcastConsole() {
 
                       {/* POWER ON */}
 
-                      {powerOn && (
-                        <div
-                          className={`pointer-events-none absolute inset-0 ${
-                            powerPhase === "starting"
-                              ? "nhb-crt-power-on"
-                              : powerPhase === "stopping"
-                                ? "nhb-crt-power-off"
-                                : ""
-                          }`}
-                        >
-                          {transitioning ? (
-                            <img
-                              key={transitionId}
-                              src={`/images/channel-switch.gif?switch=${transitionId}`}
-                              alt=""
-                              className="absolute inset-0 h-full w-full object-cover"
-                            />
-                          ) : view === "HOME" ? (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black">
-                              <p
-                                className="font-mono text-3xl font-black tracking-[0.16em] text-[#d94337] md:text-5xl"
-                                style={{
-                                  textShadow:
-                                    "0 0 3px rgba(255,80,65,.95), 0 0 16px rgba(217,48,38,.85), 0 0 38px rgba(170,25,20,.65)",
-                                }}
-                              >
-                                Press OK
-                              </p>
+                      <div
+                        className={`pointer-events-none absolute inset-0 bg-black text-[#ded3bc] ${!powerOn ? "invisible" : ""} ${
+                          powerPhase === "starting" ? "nhb-crt-power-on" : powerPhase === "stopping" ? "nhb-crt-power-off" : ""
+                        }`}
+                      >
+                        {tv.mode === "music" && !["video-list", "video-player"].includes(tv.screen) && (
+                          musicTrack ? <>
+                            {musicTrack.artwork && <Image src={musicTrack.artwork} alt={`${musicTrack.releaseTitle ?? musicTrack.title} artwork`} fill sizes="(max-width: 1024px) 75vw, 600px" className="object-cover" />}
+                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-4 pb-4 pt-8 text-center font-mono text-[9px] tracking-[0.1em]">
+                              <p>{musicTrack.title}</p>
+                              {mediaError ? <p className="mt-2">AUDIO UNAVAILABLE</p> : needsGesture ? <p className="mt-2">PRESS OK TO PLAY</p> : null}
                             </div>
-                          ) : view === "AFFILIATE_INTRO" ? (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-black text-center">
-                              <p
-                                className="font-mono text-3xl font-black tracking-[0.16em] text-[#d94337] md:text-5xl"
-                                style={{
-                                  textShadow:
-                                    "0 0 3px rgba(255,80,65,.95), 0 0 16px rgba(217,48,38,.85), 0 0 38px rgba(170,25,20,.65)",
-                                }}
-                              >
-                                CURATED ARTISTS
-                              </p>
-                              <p className="font-mono text-xs tracking-[0.16em] text-[#d94337] md:text-sm">
-                                WE FW THESE JOINTS
-                              </p>
-                              <p className="font-mono text-sm tracking-[0.16em] text-[#d94337] [text-shadow:0_0_12px_rgba(217,48,38,.7)] md:text-lg">
-                                Press OK
-                              </p>
-                            </div>
-                          ) : view === "AFFILIATE_DIRECTORY" ? (
-                            <div className="absolute inset-0 overflow-y-auto bg-[#11100b] p-5 text-[#d4c49d] md:p-8">
-                              <p className="border-b border-[#cbb67f]/20 pb-4 font-mono text-[8px] uppercase tracking-[0.2em]">
-                                CURATED ARTISTS
-                              </p>
-                              <div className="mt-4">
-                                {affiliateDirectory.map((affiliateEntry, index) => (
-                                  <div
-                                    key={affiliateEntry.id}
-                                    className={`block w-full border-b border-[#d2ba81]/15 py-3 text-left font-display text-lg uppercase md:text-2xl ${menuIndex === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}
-                                  >
-                                    {affiliateEntry.name}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="absolute inset-0 bg-[#09100c] p-5 text-[#ded3bc] md:p-8">
-                              <div className="absolute left-5 top-5 font-mono text-[8px] uppercase tracking-[0.2em] text-white/60 md:left-8 md:top-8">
-                                <span>{channelLabel}</span><br />{identity}
-                              </div>
-                              <div className="absolute left-1/2 top-[22%] -translate-x-1/2 text-center font-mono text-sm font-bold uppercase tracking-[0.2em] text-[#d94337] md:text-lg" style={{ textShadow: "1px 0 0 rgba(255,80,65,.7), -1px 0 0 rgba(120,20,18,.65), 0 1px 0 rgba(120,20,18,.65)" }}>
-                                {identity}
-                              </div>
-                              {view === "CHANNEL_MENU" || view === "SONGS_MENU" ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 text-center font-mono text-xl font-bold tracking-[0.16em] md:text-3xl">
-                                  {(view === "CHANNEL_MENU" ? ["SONGS", "VIDEOS"] : ["ALBUMS AND EPs", "SINGLES", "EXCLUSIVE PREVIEW"]).map((item, index) => (
-                                    <div key={item} className={menuIndex === index ? "text-[#f2dfb5] [text-shadow:0_0_10px_rgba(242,223,181,.55)]" : "text-[#c0ae85]/55"}>{menuIndex === index ? "> " : ""}{item}</div>
-                                  ))}
-                                </div>
-                              ) : view === "VIDEOS_MENU" ? (
-                                <div className="absolute inset-0 flex items-center justify-center text-center font-mono text-xl font-bold tracking-[0.16em] text-[#f2dfb5] md:text-3xl">
-                                  {currentChannel.media.videos.length ? currentChannel.media.videos[menuIndex]?.title : "NOTHING YET"}
-                                </div>
-                              ) : view === "VIDEO_PLAYER" ? (
-                                <div className="absolute inset-0 flex items-center justify-center text-center font-mono text-lg tracking-[0.14em] text-[#f2dfb5]">NOTHING YET</div>
-                              ) : view === "RELEASE_TRACKS" ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-8 text-center font-mono text-[#f2dfb5]">
-                                  <p className="text-base font-bold tracking-[0.08em] md:text-xl">{selectedRelease?.title}</p>
-                                  <div className="flex flex-col gap-3 text-lg font-bold tracking-[0.12em] md:text-2xl">
-                                    {selectedRelease?.tracklist.length
-                                      ? selectedRelease.tracklist.map((track, index) => (
-                                          <div key={track.id} className={menuIndex === index ? "text-[#f2dfb5] [text-shadow:0_0_10px_rgba(242,223,181,.55)]" : "text-[#c0ae85]/55"}>
-                                            {menuIndex === index ? "> " : ""}{track.title}
-                                          </div>
-                                        ))
-                                      : "NO AUDIO YET"}
-                                  </div>
-                                </div>
-                              ) : view === "ALBUMS_EPS" || view === "SINGLES" ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center font-mono text-xl font-bold tracking-[0.12em] text-[#f2dfb5] md:text-3xl">
-                                  {(view === "ALBUMS_EPS" ? currentChannel.media.albumsEps : currentChannel.media.singles).length
-                                    ? (view === "ALBUMS_EPS" ? currentChannel.media.albumsEps : currentChannel.media.singles).map((release, index) => (
-                                        <div key={release.slug} className={menuIndex === index ? "text-[#f2dfb5] [text-shadow:0_0_10px_rgba(242,223,181,.55)]" : "text-[#c0ae85]/55"}>
-                                          {menuIndex === index ? "> " : ""}{release.title}
-                                        </div>
-                                      ))
-                                    : "NOTHING YET"}
-                                </div>
-                              ) : (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center font-mono text-xl font-bold tracking-[0.12em] text-[#f2dfb5] md:text-3xl">
-                                  {currentChannel.media.exclusivePreview.length
-                                    ? currentChannel.media.exclusivePreview.map((item) => <div key={item}>{item}</div>)
-                                    : "NOTHING YET"}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {/* curved CRT shadow */}
+                          </> : <div className="absolute inset-0 grid place-items-center font-mono text-sm tracking-widest">NO MUSIC YET</div>
+                        )}
+                        {tv.screen === "video-player" && video && <YouTubePlayer ref={youtubeRef} title={video.title} url={video.youtubeUrl} volume={volume} />}
+                        {tv.screen !== "broadcast" && tv.screen !== "video-player" && (
+                          <div className="absolute inset-0 overflow-y-auto bg-[#11100b] p-5 text-[#d4c49d] md:p-8">
+                            <p className="border-b border-[#cbb67f]/20 pb-3 font-mono text-[10px] uppercase tracking-[0.2em]">
+                              {tv.screen.startsWith("options") ? (tv.screen === "options-categories" ? `${identity} / MUSIC OPTIONS` : tv.screen === "options-release-list" ? tv.optionsCategory.toUpperCase() : optionsRelease?.title ?? "PROJECT TRACKS") : tv.screen.startsWith("video") ? `${identity} / VIDEOS` : tv.screen === "archive-list" ? "ARCHIVE" : tv.screen === "exclusive-artists" ? "EXCLUSIVE" : `${exclusiveArtist.name} / EXCLUSIVE`}
+                            </p>
+                            {tv.screen === "options-categories" && <div className="mt-6 font-mono text-sm tracking-widest">
+                              {["SINGLES", "PROJECTS"].map((label, index) => <div key={label} className={`border-b border-[#d2ba81]/15 py-3 ${tv.cursor === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}>{tv.cursor === index ? "> " : ""}{label}</div>)}
+                            </div>}
+                            {tv.screen === "options-release-list" && <div className="mt-6 font-mono text-sm tracking-widest">
+                              {optionsReleases.length ? optionsReleases.map((release, index) => <div key={release.slug} className={`border-b border-[#d2ba81]/15 py-3 ${tv.cursor === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}>{tv.cursor === index ? "> " : ""}{release.title}</div>) : <p className="mt-8 text-center">NO {tv.optionsCategory === "singles" ? "SINGLES" : "PROJECTS"} YET</p>}
+                            </div>}
+                            {tv.screen === "options-tracks" && <div className="mt-6 font-mono text-sm tracking-widest">
+                              {optionsRelease?.tracklist.filter((track) => track.audioUrl.trim()).map((track, index) => <div key={track.id} className={`border-b border-[#d2ba81]/15 py-3 ${tv.cursor === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}>{tv.cursor === index ? "> " : ""}{track.title}</div>)}
+                            </div>}
+                            {tv.screen === "video-list" && <div className="mt-6 font-mono text-sm tracking-widest">
+                              {activeVideos.length ? activeVideos.map((item, index) => <div key={item.id} className={`border-b border-[#d2ba81]/15 py-3 ${tv.cursor === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}>{tv.cursor === index ? "> " : ""}{item.title}</div>) : <p className="mt-8 text-center">NO VIDEOS YET</p>}
+                            </div>}
+                            {tv.screen === "archive-list" && <div className="mt-4">
+                              {archiveArtists.map((entry, index) => <div key={entry.id} className={`border-b border-[#d2ba81]/15 py-2 font-display text-lg uppercase md:text-2xl ${tv.cursor === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}>
+                                {tv.cursor === index ? "> " : ""}{entry.name}
+                              </div>)}
+                            </div>}
+                            {tv.screen === "exclusive-artists" && <div className="mt-6 font-mono text-sm tracking-widest">
+                              {exclusiveArtistSlugs.map((slug, index) => <div key={slug} className={`border-b border-[#d2ba81]/15 py-3 ${tv.cursor === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}>
+                                {tv.cursor === index ? "> " : ""}{artists.find((artist) => artist.slug === slug)!.name}
+                              </div>)}
+                            </div>}
+                            {tv.screen === "exclusive-list" && <div className="mt-6 font-mono text-sm tracking-widest">
+                              {exclusiveArtist.exclusives.length ? exclusiveArtist.exclusives.map((item, index) => <div key={item.id} className={`border-b border-[#d2ba81]/15 py-3 ${tv.cursor === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}>
+                                {tv.cursor === index ? "> " : ""}{item.title}
+                              </div>) : <p className="mt-8 text-center">NO EXCLUSIVES YET</p>}
+                            </div>}
+                            {tv.screen === "exclusive-item" && exclusive && <div className="absolute inset-x-5 bottom-5 top-16 md:inset-x-8">
+                              {exclusive.kind === "image" && <Image src={exclusive.imageUrl} alt={exclusive.alt} fill sizes="600px" className="object-contain" />}
+                              {exclusive.kind === "audio" && <>
+                                {exclusive.artwork && <Image src={exclusive.artwork} alt="" fill sizes="600px" className="object-contain" />}
+                                <p className="absolute inset-x-0 bottom-0 bg-black/70 p-3 text-center font-mono text-xs">{exclusive.title}{mediaError ? " / AUDIO UNAVAILABLE" : needsGesture ? " / PRESS OK TO PLAY" : ""}</p>
+                              </>}
+                              {exclusive.kind === "video" && <BroadcastVideo key={exclusive.id} ref={exclusiveVideoRef} video={{ id: exclusive.id, title: exclusive.title, source: exclusive.source, thumbnail: exclusive.poster }} active={powerPhase === "on"} volume={volume} />}
+                            </div>}
+                          </div>
+                        )}
+                        {tv.screen === "broadcast" && tv.mode === "music" && <div className="absolute left-4 top-4 max-w-[68%] bg-black/40 px-2 py-1 font-mono text-[8px] uppercase leading-[1.45] tracking-[0.12em] text-white/65">
+                          <p>{tv.artistContext.kind === "archive" ? `ARCHIVE / ${identity}` : `${channelLabel} / ${identity}`}</p>
+                          <p className="mt-1 max-w-[34ch] text-[7px] tracking-[0.1em]">SHUFFLED PLAYLIST, PRESS OPTIONS TO SELECT SPECIFIC SONGS</p>
+                        </div>}
+                        {tv.screen === "broadcast" && tv.mode === "video" && <p className="absolute left-4 top-4 bg-black/40 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.15em] text-white/65">{tv.artistContext.kind === "archive" ? `ARCHIVE / ${identity}` : `${channelLabel} / ${identity}`}</p>}
+                        {transitioning && <img key={transitionId} src={`/images/channel-switch.gif?switch=${transitionId}`} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+                      </div>                      {/* curved CRT shadow */}
 
                       <div className="pointer-events-none absolute inset-0 rounded-[11%] bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(0,0,0,.5)_100%)]" />
 
@@ -1067,22 +1049,11 @@ export function BroadcastConsole() {
                       <div className="mt-2 flex items-end justify-between">
 
                         <span className="font-mono text-[32px] leading-none text-white/80">
-                          {view === "HOME"
-                            ? "H"
-                            : view === "AFFILIATE_INTRO" ||
-                                view === "AFFILIATE_DIRECTORY" ||
-                                signalSource === "affiliate"
-                              ? "A"
-                              : String(selectedChannel + 1).padStart(2, "0")}
+                          {String(selectedChannel + 1).padStart(2, "0")}
                         </span>
 
                         <span className="font-mono text-[11px] uppercase text-white/50">
-                          {view === "HOME"
-                            ? "START"
-                            : view === "AFFILIATE_INTRO" ||
-                                view === "AFFILIATE_DIRECTORY"
-                              ? "CURATED ARTISTS"
-                              : identity}
+                          {tv.screen.startsWith("archive") ? "ARCHIVE" : tv.screen.startsWith("exclusive") ? "EXCLUSIVE" : identity}
                         </span>
 
                       </div>
@@ -1129,6 +1100,7 @@ export function BroadcastConsole() {
                       <button
                         type="button"
                         onClick={() => changeChannel(1)}
+                        aria-label="Channel up"
                         className="remote-direction-button"
                       >
                         ▲
@@ -1138,6 +1110,7 @@ export function BroadcastConsole() {
                       <button
                         type="button"
                         onClick={() => changeChannel(-1)}
+                        aria-label="Channel down"
                         className="remote-direction-button"
                       >
                         ▼
@@ -1151,10 +1124,10 @@ export function BroadcastConsole() {
                   {/* dpad */}
                   <div className="mt-4 flex justify-center">
                     <div className="broadcast-remote-dpad relative h-[115px] w-[115px] rounded-full border-2 border-black bg-[#101010] shadow-[inset_0_5px_10px_rgba(0,0,0,.85)]">
-                      <button type="button" onClick={() => navigateMenu(-1)} className="absolute left-1/2 top-3 -translate-x-1/2 font-mono text-[13px] text-white/45 hover:text-white">▲</button>
-                      <button type="button" onClick={() => navigateMenu(1)} className="absolute bottom-3 left-1/2 -translate-x-1/2 font-mono text-[13px] text-white/45 hover:text-white">▼</button>
-                      <button type="button" className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-[13px] text-white/45 hover:text-white">◀</button>
-                      <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[13px] text-white/45 hover:text-white">▶</button>
+                      <button type="button" aria-label="Menu up" onClick={() => navigateMenu(-1)} className="absolute left-1/2 top-3 -translate-x-1/2 font-mono text-[13px] text-white/45 hover:text-white">▲</button>
+                      <button type="button" aria-label="Menu down" onClick={() => navigateMenu(1)} className="absolute bottom-3 left-1/2 -translate-x-1/2 font-mono text-[13px] text-white/45 hover:text-white">▼</button>
+                      <button type="button" aria-label="Previous track" onClick={() => skipTrack(-1)} className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-[13px] text-white/45 hover:text-white">&#9664;</button>
+                      <button type="button" aria-label="Next track" onClick={() => skipTrack(1)} className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[13px] text-white/45 hover:text-white">&#9654;</button>
                       <button type="button" onClick={selectMenuItem} className="broadcast-remote-ok absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-black bg-[#282828]">
                         <span className="font-mono text-[9px] font-bold tracking-[0.15em] text-white/55">OK</span>
                       </button>
@@ -1164,13 +1137,17 @@ export function BroadcastConsole() {
                   <div className="broadcast-remote-custom mt-4">
                     <p className="mb-2 font-mono text-[13px] uppercase tracking-[0.08em] text-white/55">Destination</p>
                     <div className="grid grid-cols-3 gap-2">
-                      <button type="button" onClick={() => openSection("MUSIC")} className={`remote-destination-button ${view === "SONGS_MENU" ? "remote-destination-active" : ""}`}>MUSIC</button>
-                      <button type="button" onClick={() => openSection("VIDEOS")} className={`remote-destination-button ${view === "VIDEOS_MENU" ? "remote-destination-active" : ""}`}>VIDEOS</button>
+                      <button type="button" onClick={() => openSection("MUSIC")} className={`remote-destination-button ${isRemoteDestinationActive("music", tv) ? "remote-destination-active" : ""}`}>MUSIC</button>
+                      <button type="button" onClick={() => openSection("VIDEOS")} className={`remote-destination-button ${isRemoteDestinationActive("videos", tv) ? "remote-destination-active" : ""}`}>VIDEOS</button>
                       <div className="flex flex-col gap-2">
+                        <button type="button" onClick={openOptions} className={`remote-destination-button rounded-full py-1 text-[9px] ${isRemoteDestinationActive("options", tv) ? "remote-destination-active" : ""}`}>OPTIONS</button>
                         <button type="button" onClick={goBack} className="remote-destination-button py-1">BACK</button>
-                        <button type="button" onClick={openAffiliateIntro} className={`remote-destination-button ${view === "AFFILIATE_INTRO" || view === "AFFILIATE_DIRECTORY" || signalSource === "affiliate" ? "remote-destination-active" : ""}`}>EXTRA</button>
+                        <button type="button" onClick={() => openSpecial("archive-list")} className={`remote-destination-button ${isRemoteDestinationActive("archive", tv) ? "remote-destination-active" : ""}`}>ARCHIVE</button>
                       </div>
                     </div>
+                  </div>
+                  <div className="broadcast-remote-custom mt-2">
+                    <button type="button" onClick={() => openSpecial("exclusive-artists")} className={`remote-destination-button w-full ${isRemoteDestinationActive("exclusive", tv) ? "remote-destination-active" : ""}`}>EXCLUSIVE</button>
                   </div>
                   <div className="broadcast-remote-volume mt-5 border-t border-white/[0.07] pt-4">
                     <div className="mb-3 flex items-center justify-between font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-white/55">
@@ -1263,15 +1240,7 @@ export function BroadcastConsole() {
       {/* status */}
       <div className="relative z-10 mx-auto mt-20 flex max-w-7xl justify-between border-t border-[#a7a08c]/10 pt-5 font-mono text-[8px] uppercase tracking-[0.2em] text-[#a7a08c]/30">
         <span>
-          {view === "HOME"
-            ? "HOME / START"
-            : view === "AFFILIATE_INTRO"
-              ? "CURATED ARTISTS / START"
-            : view === "AFFILIATE_DIRECTORY"
-              ? "CURATED ARTISTS"
-              : signalSource === "affiliate"
-                ? `CURATED ARTISTS / ${identity}`
-                : `${channelLabel} / ${member.name}`}
+          {tv.screen.startsWith("archive") ? "ARCHIVE" : tv.screen.startsWith("exclusive") ? `${channelLabel} / ${identity} / EXCLUSIVE` : `${tv.artistContext.kind === "archive" ? `ARCHIVE / ${identity}` : `${channelLabel} / ${identity}`} / ${tv.mode.toUpperCase()}`}
         </span>
         <span>{powerOn ? "signal detected" : "transmission ended"}</span>
       </div>

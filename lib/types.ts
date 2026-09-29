@@ -2,6 +2,7 @@
 // Structured so the site can later be backed by Supabase tables.
 
 export type ArtistType = "member" | "affiliate"
+export type TvArtistContext = { kind: "official"; slug: string } | { kind: "archive"; id: string }
 
 export interface SocialLink {
   label: string
@@ -14,6 +15,28 @@ export interface Track {
   duration: string // mm:ss
   audioUrl: string
 }
+
+export type VideoSource = { kind: "file"; src: string }
+
+export interface MusicVideo {
+  id: string
+  title: string
+  youtubeUrl: string
+  year?: string
+  thumbnail?: string
+}
+
+export interface ArchiveArtist {
+  id: string
+  name: string
+  releaseSlugs: string[]
+  videos: MusicVideo[]
+}
+
+export type ExclusiveContent =
+  | { id: string; title: string; kind: "audio"; audioUrl: string; artwork?: string }
+  | { id: string; title: string; kind: "video"; source: VideoSource; poster?: string }
+  | { id: string; title: string; kind: "image"; imageUrl: string; alt: string }
 
 export interface Artist {
   slug: string
@@ -28,8 +51,8 @@ export interface Artist {
   socials: SocialLink[]
   // Related content (referenced by slug/id for a future relational schema)
   releaseSlugs: string[]
-  unreleased: Track[]
-  videos: { id: string; title: string; year: string; thumbnail: string }[]
+  exclusives: ExclusiveContent[]
+  videos: MusicVideo[]
   news: { id: string; date: string; title: string }[]
   merch: { id: string; name: string; price: string; image: string }[]
   eventSlugs: string[]

@@ -12,7 +12,11 @@ function fmt(s: number) {
 }
 
 export function AudioPlayer() {
-  const { current, isPlaying, progress, currentTime, duration, volume, toggle, seek, setVolume, shuffle, repeatMode, queueLength, toggleShuffle, cycleRepeat } = useAudio()
+  const { current: loadedTrack, owner, isPlaying, progress, currentTime, duration, volume, toggle, seek, setVolume, shuffle, repeatMode, queueLength, toggleShuffle, cycleRepeat, previousTrack, nextTrack } = useAudio()
+
+  const current = owner === "video" ? null : loadedTrack
+  const locked = owner !== "music"
+  const seekLocked = locked || !current
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-[120] border-t border-[#d5bb8a]/20 bg-[#090807]/95 text-[#ded2b8] backdrop-blur-md">
@@ -20,13 +24,15 @@ export function AudioPlayer() {
       <button
         type="button"
         aria-label="Seek"
+        disabled={seekLocked}
         onClick={(e) => {
+          if (seekLocked) return
           const rect = e.currentTarget.getBoundingClientRect()
           seek((e.clientX - rect.left) / rect.width)
         }}
-        className="group block h-1 w-full cursor-pointer bg-[#2b251d]"
+        className="group block h-1 w-full cursor-pointer bg-[#2b251d] disabled:cursor-default"
       >
-        <span className="block h-full bg-[#c7a45f]" style={{ width: `${progress * 100}%` }} />
+        <span className="block h-full bg-[#c7a45f]" style={{ width: `${locked ? 0 : progress * 100}%` }} />
       </button>
 
       <div className="flex h-16 items-center gap-3 px-3 md:h-20 md:gap-5 md:px-6">
@@ -38,18 +44,21 @@ export function AudioPlayer() {
             ) : null}
           </div>
           <div className="min-w-0">
-            <p className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[#ded2b8]">{current ? current.title : "NO TRACK LOADED"}</p>
+            <p className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[#ded2b8]">{current ? current.title : owner === "video" ? "VIDEO MODE — MUSIC PAUSED" : "NO TRACK LOADED"}</p>
             <p className="eyebrow truncate text-[#a99b82]/70">
               {current ? current.artist : "no.holds.barred."}
             </p>
           </div>
         </div>
 
-        {/* Play / pause */}
+        {/* Previous / play / next */}
+        <button type="button" onClick={previousTrack} disabled={locked || !current} aria-label="Previous track" className="grid h-8 w-8 shrink-0 place-items-center border border-[#d5bb8a]/20 text-[#ded2b8] transition-colors hover:bg-[#d5bb8a]/10 disabled:opacity-30">
+          <span className="font-mono text-[11px]">|&lt;</span>
+        </button>
         <button
           type="button"
           onClick={toggle}
-          disabled={!current}
+          disabled={locked || !current}
           aria-label={isPlaying ? "Pause" : "Play"}
           className="grid h-10 w-10 shrink-0 place-items-center border border-[#d5bb8a]/30 text-[#ded2b8] transition-colors hover:bg-[#d5bb8a]/10 disabled:opacity-30 md:h-12 md:w-12"
         >
@@ -64,19 +73,22 @@ export function AudioPlayer() {
             </svg>
           )}
         </button>
+        <button type="button" onClick={nextTrack} disabled={locked || !current} aria-label="Next track" className="grid h-8 w-8 shrink-0 place-items-center border border-[#d5bb8a]/20 text-[#ded2b8] transition-colors hover:bg-[#d5bb8a]/10 disabled:opacity-30">
+          <span className="font-mono text-[11px]">&gt;|</span>
+        </button>
 
         <div className="flex items-center gap-1">
-          <button type="button" onClick={toggleShuffle} disabled={!current || queueLength < 2} aria-label="Shuffle" aria-pressed={shuffle} className={`grid h-8 w-8 place-items-center border border-[#d5bb8a]/20 transition-colors disabled:cursor-not-allowed disabled:opacity-25 ${shuffle ? "text-[#d5bb8a]" : "text-[#a99b82]/60 hover:text-[#ded2b8]"}`}>
+          <button type="button" onClick={toggleShuffle} disabled={locked || !current || queueLength < 2} aria-label="Shuffle" aria-pressed={shuffle} className={`grid h-8 w-8 place-items-center border border-[#d5bb8a]/20 transition-colors disabled:cursor-not-allowed disabled:opacity-25 ${shuffle ? "text-[#d5bb8a]" : "text-[#a99b82]/60 hover:text-[#ded2b8]"}`}>
             <Shuffle size={14} strokeWidth={1.7} />
           </button>
-          <button type="button" onClick={cycleRepeat} disabled={!current} aria-label={repeatMode === "one" ? "Repeat one" : "Repeat"} aria-pressed={repeatMode !== "off"} className={`grid h-8 w-8 place-items-center border border-[#d5bb8a]/20 transition-colors disabled:cursor-not-allowed disabled:opacity-25 ${repeatMode !== "off" ? "text-[#d5bb8a]" : "text-[#a99b82]/60 hover:text-[#ded2b8]"}`}>
+          <button type="button" onClick={cycleRepeat} disabled={locked || !current} aria-label={repeatMode === "one" ? "Repeat one" : "Repeat"} aria-pressed={repeatMode !== "off"} className={`grid h-8 w-8 place-items-center border border-[#d5bb8a]/20 transition-colors disabled:cursor-not-allowed disabled:opacity-25 ${repeatMode !== "off" ? "text-[#d5bb8a]" : "text-[#a99b82]/60 hover:text-[#ded2b8]"}`}>
             {repeatMode === "one" ? <Repeat1 size={14} strokeWidth={1.7} /> : <Repeat size={14} strokeWidth={1.7} />}
           </button>
         </div>
 
         {/* Time */}
         <div className="hidden whitespace-nowrap font-mono text-[9px] tabular-nums text-[#a99b82]/70 sm:block">
-          {fmt(currentTime)} / {fmt(duration)}
+          {fmt(locked ? 0 : currentTime)} / {fmt(locked ? 0 : duration)}
         </div>
 
         {/* Volume */}

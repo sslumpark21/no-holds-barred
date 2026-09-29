@@ -25,11 +25,15 @@ export default function ReleasesPage() {
         </p>
       </header>
 
-      <section className="px-4 md:px-6 py-10 border-t border-line">
-        <div className="grid grid-cols-1 gap-x-4 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
-          {sorted.map((r) => (
-            <ReleaseCard key={r.slug} release={r} sleeve />
-          ))}
+      <section className="border-t border-line px-4 py-10 md:px-6 md:py-16" aria-labelledby="releases-library-heading">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-8 flex items-end justify-between gap-4">
+            <h2 id="releases-library-heading" className="font-display text-3xl uppercase md:text-5xl">Releases</h2>
+            <p className="eyebrow text-muted-ink">Collection / library</p>
+          </div>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
+            {sorted.map((release) => <ReleaseCard key={release.slug} release={release} sleeve />)}
+          </div>
         </div>
       </section>
     </main>

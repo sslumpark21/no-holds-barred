@@ -22,8 +22,7 @@ export default async function ReleasePage({ params }: { params: Promise<{ slug: 
   if (!release) notFound()
 
   const artist = getArtist(release.artistSlug)
-  const tvView = release.type === "Single" ? "singles" : "albums-eps"
-  const tvQuery = new URLSearchParams({ tv: "1", artist: release.artistSlug, view: tvView, release: release.slug })
+  const tvQuery = new URLSearchParams({ tv: "1", artist: release.artistSlug, mode: "music", release: release.slug })
   const tvHref = `/?${tvQuery.toString()}#broadcast`
 
   return (
@@ -47,12 +46,12 @@ export default async function ReleasePage({ params }: { params: Promise<{ slug: 
           ) : (
             <p className="mt-4 font-display text-xl md:text-2xl uppercase">{release.artistName}</p>
           )}
-          {release.description.map((p, i) => (
-            <p key={i} className="mt-5 text-sm md:text-base text-muted-ink leading-relaxed max-w-lg">
-              {p}
-            </p>
-          ))}
         </div>
+      </section>
+
+      <section className="border-t border-line px-4 py-12 md:px-6 md:py-16">
+        <h2 className="eyebrow mb-6 text-muted-ink">ABOUT THE RELEASE / PROJECT</h2>
+        {release.description.map((paragraph, index) => <p key={index} className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-ink md:text-base">{paragraph}</p>)}
       </section>
 
       <section className="px-4 md:px-6 py-12 md:py-16 border-t border-line">
