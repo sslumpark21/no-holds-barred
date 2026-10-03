@@ -12,14 +12,15 @@ function fmt(s: number) {
 }
 
 export function AudioPlayer() {
-  const { current: loadedTrack, owner, isPlaying, progress, currentTime, duration, volume, toggle, seek, setVolume, shuffle, repeatMode, queueLength, toggleShuffle, cycleRepeat, previousTrack, nextTrack } = useAudio()
+  const { current: loadedTrack, owner, playbackMode, isPlaying, progress, currentTime, duration, volume, toggle, seek, setVolume, shuffle, repeatMode, queueLength, toggleShuffle, cycleRepeat, previousTrack, nextTrack } = useAudio()
 
   const current = owner === "video" ? null : loadedTrack
   const locked = owner !== "music"
   const seekLocked = locked || !current
+  const skipLocked = locked || !current || (playbackMode === "exclusive" && queueLength < 2)
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[120] border-t border-[#d5bb8a]/20 bg-[#090807]/95 text-[#ded2b8] backdrop-blur-md">
+    <div data-audio-player className="fixed inset-x-0 bottom-0 z-[120] border-t border-[#d5bb8a]/20 bg-[#090807]/95 text-[#ded2b8] backdrop-blur-md">
       {/* progress line spanning full width */}
       <button
         type="button"
@@ -44,7 +45,7 @@ export function AudioPlayer() {
             ) : null}
           </div>
           <div className="min-w-0">
-            <p className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[#ded2b8]">{current ? current.title : owner === "video" ? "VIDEO MODE — MUSIC PAUSED" : "NO TRACK LOADED"}</p>
+            <p className={`truncate font-mono text-[10px] font-bold tracking-[0.14em] text-[#ded2b8] ${playbackMode === "exclusive" ? "" : "uppercase"}`}>{current ? current.title : owner === "video" ? "VIDEO MODE — MUSIC PAUSED" : "NO TRACK LOADED"}</p>
             <p className="eyebrow truncate text-[#a99b82]/70">
               {current ? current.artist : "no.holds.barred."}
             </p>
@@ -52,7 +53,7 @@ export function AudioPlayer() {
         </div>
 
         {/* Previous / play / next */}
-        <button type="button" onClick={previousTrack} disabled={locked || !current} aria-label="Previous track" className="grid h-8 w-8 shrink-0 place-items-center border border-[#d5bb8a]/20 text-[#ded2b8] transition-colors hover:bg-[#d5bb8a]/10 disabled:opacity-30">
+        <button type="button" onClick={previousTrack} disabled={skipLocked} aria-label="Previous track" className="grid h-8 w-8 shrink-0 place-items-center border border-[#d5bb8a]/20 text-[#ded2b8] transition-colors hover:bg-[#d5bb8a]/10 disabled:opacity-30">
           <span className="font-mono text-[11px]">|&lt;</span>
         </button>
         <button
@@ -73,7 +74,7 @@ export function AudioPlayer() {
             </svg>
           )}
         </button>
-        <button type="button" onClick={nextTrack} disabled={locked || !current} aria-label="Next track" className="grid h-8 w-8 shrink-0 place-items-center border border-[#d5bb8a]/20 text-[#ded2b8] transition-colors hover:bg-[#d5bb8a]/10 disabled:opacity-30">
+        <button type="button" onClick={nextTrack} disabled={skipLocked} aria-label="Next track" className="grid h-8 w-8 shrink-0 place-items-center border border-[#d5bb8a]/20 text-[#ded2b8] transition-colors hover:bg-[#d5bb8a]/10 disabled:opacity-30">
           <span className="font-mono text-[11px]">&gt;|</span>
         </button>
 

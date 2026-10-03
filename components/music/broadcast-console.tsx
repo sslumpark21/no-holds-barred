@@ -12,7 +12,8 @@ import {
 import { artists, releases } from "@/lib/data"
 import { archiveArtists } from "@/lib/archive"
 import type { TvArtistContext } from "@/lib/types"
-import { artistPlaylist } from "@/lib/broadcast"
+import { artistPlaylist, releasePlaylist } from "@/lib/broadcast"
+import { exclusiveGroups, resolveExclusiveArtist, exclusiveAudioQueue } from "@/lib/exclusive"
 import { BroadcastVideo, type VideoControls } from "./broadcast-video"
 import { YouTubePlayer, type YouTubeControls } from "./youtube-player"
 import { useAudio } from "@/components/audio/audio-provider"
@@ -48,8 +49,7 @@ function canOpenMusicOptions(tv: TvState) {
   return validArtist &&
     ((tv.screen === "broadcast" && tv.mode === "music") || tv.screen.startsWith("options-"))
 }
-const exclusiveArtistSlugs = ["moxli", "danoot", "matei"] as const
-type TvState = { channel: number; artistContext: TvArtistContext; mode: Mode; screen: Screen; cursor: number; archive: number; exclusive: number; exclusiveArtistSlug: string; optionsCategory: OptionsCategory; optionsReleaseSlug: string | null; video: number }
+type TvState = { channel: number; artistContext: TvArtistContext; mode: Mode; screen: Screen; cursor: number; archive: number; exclusive: number; exclusiveArtistContext: TvArtistContext; exclusiveGroup: number; exclusiveIndices: number[]; artistDirection: number; artistTransition: number; optionsCategory: OptionsCategory; optionsReleaseSlug: string | null; video: number }
 type TvAction =
   | { type: "broadcast"; mode: Mode; channel?: number }
   | { type: "channel"; channel: number; slug: string; exitArchive: boolean }
@@ -60,6 +60,9 @@ type TvAction =
   | { type: "options-release"; slug: string }
   | { type: "video-select"; index: number }
   | { type: "cursor"; direction: number; count: number }
+  | { type: "exclusive-group"; direction: number }
+  | { type: "exclusive-artist"; direction: number }
+  | { type: "exclusive-track"; index: number }
   | { type: "select" }
   | { type: "back" }
 function tvReducer(state: TvState, action: TvAction): TvState {
@@ -75,9 +78,12 @@ function tvReducer(state: TvState, action: TvAction): TvState {
     case "options-release": return { ...state, screen: "options-tracks", optionsReleaseSlug: action.slug, cursor: 0 }
     case "video-select": return { ...state, screen: "video-player", video: action.index }
     case "cursor": return action.count ? { ...state, cursor: (state.cursor + action.direction + action.count) % action.count } : state
+    case "exclusive-group": return { ...state, exclusiveGroup: (state.exclusiveGroup + action.direction + exclusiveGroups.length) % exclusiveGroups.length }
+    case "exclusive-artist": return { ...state, artistDirection: action.direction, artistTransition: state.artistTransition + 1, exclusiveIndices: state.exclusiveIndices.map((index, group) => group === state.exclusiveGroup ? (index + action.direction + exclusiveGroups[group].artists.length) % exclusiveGroups[group].artists.length : index) }
+    case "exclusive-track": return { ...state, exclusive: action.index, cursor: action.index }
     case "select": return state.screen === "archive-list"
       ? { ...state, artistContext: { kind: "archive", id: archiveArtists[state.cursor].id }, archive: state.cursor, mode: "music", screen: "broadcast", cursor: 0 }
-      : state.screen === "exclusive-artists" ? { ...state, screen: "exclusive-list", exclusiveArtistSlug: exclusiveArtistSlugs[state.cursor], cursor: 0 }
+      : state.screen === "exclusive-artists" ? { ...state, screen: "exclusive-list", exclusiveArtistContext: exclusiveGroups[state.exclusiveGroup].artists[state.exclusiveIndices[state.exclusiveGroup]], cursor: 0 }
       : state.screen === "exclusive-list" ? { ...state, screen: "exclusive-item", exclusive: state.cursor } : state
     case "back": return state.screen === "options-tracks" ? { ...state, screen: "options-release-list", cursor: 0 }
       : state.screen === "options-release-list" ? { ...state, screen: "options-categories", cursor: state.optionsCategory === "singles" ? 0 : 1 }
@@ -85,22 +91,22 @@ function tvReducer(state: TvState, action: TvAction): TvState {
       : state.screen === "video-player" ? { ...state, screen: "video-list", cursor: state.video }
       : state.screen === "video-list" ? { ...state, screen: "broadcast", mode: "music", cursor: 0 }
       : state.screen === "exclusive-item" ? { ...state, screen: "exclusive-list", cursor: state.exclusive }
-      : state.screen === "exclusive-list" ? { ...state, screen: "exclusive-artists", cursor: exclusiveArtistSlugs.findIndex((slug) => slug === state.exclusiveArtistSlug) }
+      : state.screen === "exclusive-list" ? { ...state, screen: "exclusive-artists", cursor: 0 }
       : { ...state, screen: "broadcast" }
   }
 }
 const VOLUME_KNOB_SIZE = 44
 const VOLUME_KNOB_INSET = VOLUME_KNOB_SIZE / 2
 export function BroadcastConsole() {
-  const { volume, setVolume, current, owner, stationMode, stationArtistSlug, needsGesture, mediaError,
-    startStation, restoreStation, playExclusive, suspend, resume, previousTrack, nextTrack, selectTrack,
+  const { volume, setVolume, current, owner, stationMode, playbackMode, stationArtistSlug, needsGesture, mediaError,
+    startStation, restoreStation, playExclusive, playQueue, suspend, resume, previousTrack, nextTrack,
     tvPoweredOn, tvChannel, tvMode, setTvPoweredOn, setTvChannel, setTvMode, tvArtistContext, setTvArtistContext,
     lastOfficialArtistSlug } = useAudio()
   const persistedChannel = tvChannel ?? Math.max(0, artists.findIndex((artist) => artist.slug === stationArtistSlug))
   const [tv, dispatch] = useReducer(tvReducer, {
     artistContext: tvArtistContext,
     channel: persistedChannel,
-    mode: tvMode, screen: "broadcast", cursor: 0, archive: 0, exclusive: 0, exclusiveArtistSlug: "moxli", optionsCategory: "singles", optionsReleaseSlug: null, video: 0,
+    mode: tvMode, screen: "broadcast", cursor: 0, archive: 0, exclusive: 0, exclusiveArtistContext: { kind: "official", slug: "danoot" }, exclusiveGroup: 0, exclusiveIndices: [0, 0], artistDirection: 1, artistTransition: 0, optionsCategory: "singles", optionsReleaseSlug: null, video: 0,
   })
   const [powerOn, setPowerOn] = useState(tvPoweredOn)
   const [powerPhase, setPowerPhase] = useState<PowerPhase>(tvPoweredOn ? "on" : "off")
@@ -116,6 +122,7 @@ export function BroadcastConsole() {
   const powerTimerRef = useRef<number | null>(null)
   const volumeBarRef = useRef<HTMLDivElement | null>(null)
   const exclusiveVideoRef = useRef<VideoControls | null>(null)
+  const selectedExclusiveRef = useRef<HTMLDivElement | null>(null)
   const youtubeRef = useRef<YouTubeControls | null>(null)
   const initialized = useRef(false)
   const specialReturnVideoScreen = useRef<"video-list" | "video-player">("video-list")
@@ -130,12 +137,25 @@ export function BroadcastConsole() {
   const light = lightByChannel[selectedChannel]
   const identity = activeArtist.name
   const channelLabel = `CH ${String(selectedChannel + 1).padStart(2, "0")}`
-  const exclusiveArtist = artists.find((artist) => artist.slug === tv.exclusiveArtistSlug)!
+  const exclusiveArtist = resolveExclusiveArtist(tv.exclusiveArtistContext)
   const exclusive = exclusiveArtist.exclusives[tv.exclusive]
   const musicTrack = current?.artistSlug === activeArtistSlug ? current : null
   const optionsReleases = releases.filter((release) => activeReleaseSlugs.includes(release.slug) && (tv.optionsCategory === "singles" ? release.type === "Single" : release.type !== "Single"))
   const optionsRelease = releases.find((release) => release.slug === tv.optionsReleaseSlug && activeReleaseSlugs.includes(release.slug))
   const video = activeVideos[tv.video]
+  const visibleExclusive = playbackMode === "exclusive" && current?.artistSlug === (tv.exclusiveArtistContext.kind === "official" ? tv.exclusiveArtistContext.slug : tv.exclusiveArtistContext.id)
+    ? exclusiveArtist.exclusives.find((item) => item.id === current.id) ?? exclusive
+    : exclusive
+
+  useEffect(() => {
+    if (tv.screen === "exclusive-list") selectedExclusiveRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" })
+  }, [tv.screen, tv.cursor, tv.exclusiveArtistContext])
+  useEffect(() => {
+    if (tv.screen === "exclusive-item" && playbackMode === "exclusive" && current?.artistSlug === (tv.exclusiveArtistContext.kind === "official" ? tv.exclusiveArtistContext.slug : tv.exclusiveArtistContext.id)) {
+      const index = exclusiveArtist.exclusives.findIndex((item) => item.id === current.id)
+      if (index >= 0 && index !== tv.exclusive) dispatch({ type: "exclusive-track", index })
+    }
+  }, [current?.id, current?.artistSlug, playbackMode, tv.screen, tv.exclusive, tv.exclusiveArtistContext, exclusiveArtist.exclusives])
 
   useEffect(() => {
     // Power, channel, and the station session live in AudioProvider, which survives route changes.
@@ -150,7 +170,7 @@ export function BroadcastConsole() {
       }
       setTvMode("music")
       setTvArtistContext(tvArtistContext)
-      if (stationMode && owner !== "music") restoreStation(false)
+      if ((stationMode && owner !== "music") || playbackMode === "exclusive") restoreStation(false)
     }
     // This is intentionally mount-only: route unmounts are not power events.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -309,6 +329,8 @@ export function BroadcastConsole() {
   const canControl = () => phaseRef.current === "on"
   const applyDestinationAudio = (screen: Screen, mode: Mode) => {
     stopVideo()
+    // Browsing within EXCLUSIVE never changes the selected audio queue or its owner.
+    if (screen.startsWith("exclusive-") && tvRef.current.screen.startsWith("exclusive-") && playbackMode === "exclusive" && owner === "music") return
     if (destinationAllowsStation(screen, mode)) {
       if (stationMode && owner === "music") resume()
       else restoreStation(true)
@@ -401,12 +423,12 @@ export function BroadcastConsole() {
   }
   const navigateMenu = (direction: -1 | 1) => {
     if (!canControl()) return
+    if (tv.screen === "exclusive-artists") { dispatch({ type: "exclusive-group", direction }); return }
     const count = tv.screen === "options-categories" ? 2
       : tv.screen === "options-release-list" ? optionsReleases.length
       : tv.screen === "options-tracks" ? optionsRelease?.tracklist.filter((track) => track.audioUrl.trim()).length ?? 0
       : tv.screen === "video-list" ? activeVideos.length
       : tv.screen === "archive-list" ? archiveArtists.length
-      : tv.screen === "exclusive-artists" ? exclusiveArtistSlugs.length
       : tv.screen === "exclusive-list" ? exclusiveArtist.exclusives.length : 0
     dispatch({ type: "cursor", direction, count })
   }
@@ -458,10 +480,9 @@ export function BroadcastConsole() {
     } else if (tv.screen === "options-tracks") {
       const track = optionsRelease?.tracklist.filter((item) => item.audioUrl.trim())[tv.cursor]
       if (!track) return
-      const queue = artistPlaylist(activeArtist, releases)
+      const queue = optionsRelease ? releasePlaylist(optionsRelease) : []
       const index = queue.findIndex((item) => item.id === track.id)
-      if (index >= 0 && stationMode && current?.artistSlug === activeArtistSlug) selectTrack(index)
-      else if (index >= 0) startStation(activeArtistSlug, queue, track.id, false, true)
+      if (index >= 0) playQueue(queue, index)
     } else if (tv.screen === "video-list") {
       if (activeVideos[tv.cursor]) dispatch({ type: "video-select", index: tv.cursor })
     } else if (tv.screen === "archive-list") {
@@ -476,8 +497,13 @@ export function BroadcastConsole() {
       const item = exclusiveArtist.exclusives[tv.cursor]
       if (!item) return
       if (item.kind === "audio") {
-        playExclusive({ id: item.id, title: item.title, artist: exclusiveArtist.name, artistSlug: exclusiveArtist.slug, artwork: item.artwork ?? "", audioUrl: item.audioUrl })
-      } else if (item.kind === "video") suspend("video")
+        const queue = exclusiveAudioQueue(tv.exclusiveArtistContext, item.id)
+        playExclusive(queue.find((track) => track.id === item.id)!, queue)
+      } else {
+        // Selecting another medium releases exclusive audio; mere browsing does not.
+        restoreStation(false)
+        suspend(item.kind === "video" ? "video" : "browsing")
+      }
       dispatch({ type: "select" })
     } else if (tv.screen === "exclusive-item") {
       if (exclusive?.kind === "audio") resume()
@@ -486,8 +512,16 @@ export function BroadcastConsole() {
   }
   const skipTrack = (direction: -1 | 1) => {
     if (!canControl()) return
+    if (tv.screen === "exclusive-artists") { dispatch({ type: "exclusive-artist", direction }); return }
     if (tv.screen === "video-player") { youtubeRef.current?.seekBy(direction * 10); return }
-    if (!destinationAllowsStation(tv.screen, tv.mode) || owner !== "music" || !stationMode) return
+    if (owner !== "music") return
+    if (tv.screen === "exclusive-item" && playbackMode === "exclusive") {
+      if (direction < 0) previousTrack()
+      else nextTrack()
+      return
+    }
+    if (!destinationAllowsStation(tv.screen, tv.mode) && !tv.screen.startsWith("options-")) return
+    if (!playbackMode) return
     if (direction < 0) previousTrack()
     else nextTrack()
   }
@@ -561,6 +595,21 @@ export function BroadcastConsole() {
 
       <style>
         {`
+          @keyframes nhbArtistSettle {
+            0% { opacity: .25; transform: translateX(var(--artist-shift)) scale(.96); filter: blur(1px); }
+            35% { opacity: .8; transform: translateX(-2px) skewX(-3deg); }
+            55% { text-shadow: -5px 0 rgba(214,195,147,.3), 3px 0 rgba(214,195,147,.15); }
+            100% { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
+          }
+          @keyframes nhbArtistArrow {
+            0%, 100% { opacity: .45; }
+            50% { opacity: .9; }
+          }
+          .nhb-artist-name { animation: nhbArtistSettle 190ms ease-out both; }
+          .nhb-artist-focused .nhb-artist-arrow { animation: nhbArtistArrow 1.6s steps(3, end) infinite; }
+          @media (prefers-reduced-motion: reduce) {
+            .nhb-artist-name, .nhb-artist-focused .nhb-artist-arrow { animation: none; }
+          }
           @keyframes nhbAmbientFlicker {
             0%   { opacity: .82; transform: scale(1); }
             6%   { opacity: .76; }
@@ -872,8 +921,8 @@ export function BroadcastConsole() {
                         )}
                         {tv.screen === "video-player" && video && <YouTubePlayer ref={youtubeRef} title={video.title} url={video.youtubeUrl} volume={volume} />}
                         {tv.screen !== "broadcast" && tv.screen !== "video-player" && (
-                          <div className="absolute inset-0 overflow-y-auto bg-[#11100b] p-5 text-[#d4c49d] md:p-8">
-                            <p className="border-b border-[#cbb67f]/20 pb-3 font-mono text-[10px] uppercase tracking-[0.2em]">
+                          <div className={`absolute inset-0 bg-[#11100b] text-[#d4c49d] md:p-8 ${tv.screen === "exclusive-artists" ? "flex flex-col overflow-hidden p-3" : "overflow-y-auto p-5"}`}>
+                            <p className={`shrink-0 border-b border-[#cbb67f]/20 font-mono text-[10px] uppercase tracking-[0.2em] ${tv.screen === "exclusive-artists" ? "pb-1 md:pb-3" : "pb-3"}`}>
                               {tv.screen.startsWith("options") ? (tv.screen === "options-categories" ? `${identity} / MUSIC OPTIONS` : tv.screen === "options-release-list" ? tv.optionsCategory.toUpperCase() : optionsRelease?.title ?? "PROJECT TRACKS") : tv.screen.startsWith("video") ? `${identity} / VIDEOS` : tv.screen === "archive-list" ? "ARCHIVE" : tv.screen === "exclusive-artists" ? "EXCLUSIVE" : `${exclusiveArtist.name} / EXCLUSIVE`}
                             </p>
                             {tv.screen === "options-categories" && <div className="mt-6 font-mono text-sm tracking-widest">
@@ -893,23 +942,62 @@ export function BroadcastConsole() {
                                 {tv.cursor === index ? "> " : ""}{entry.name}
                               </div>)}
                             </div>}
-                            {tv.screen === "exclusive-artists" && <div className="mt-6 font-mono text-sm tracking-widest">
-                              {exclusiveArtistSlugs.map((slug, index) => <div key={slug} className={`border-b border-[#d2ba81]/15 py-3 ${tv.cursor === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}>
-                                {tv.cursor === index ? "> " : ""}{artists.find((artist) => artist.slug === slug)!.name}
-                              </div>)}
+                            {tv.screen === "exclusive-artists" && <div className="mt-2 flex min-h-0 flex-1 flex-col font-mono md:mt-4">
+                              <p className="shrink-0 text-center text-[8px] tracking-[.24em] text-[#b5a578]/70 md:text-[10px]">SELECT YOUR ARTIST</p>
+                              <div className="mt-2 grid min-h-0 flex-1 grid-rows-2 gap-2 md:mt-4 md:gap-4">
+                                {exclusiveGroups.map((group, groupIndex) => {
+                                  const index = tv.exclusiveIndices[groupIndex]
+                                  const selected = resolveExclusiveArtist(group.artists[index])
+                                  const focused = tv.exclusiveGroup === groupIndex
+                                  return <div key={group.label} role="group" aria-label={group.label} data-focused={focused} data-selected-artist={selected.name} className={`relative flex min-h-0 flex-col justify-center border-y px-2 py-1 transition-colors duration-150 ${focused ? "nhb-artist-focused border-[#d2ba81]/35 bg-[#c5b17e]/[.035] text-[#f2dfb5]" : "border-[#d2ba81]/10 text-[#b2a279]/45"}`}>
+                                    <div className="flex items-center justify-between text-[8px] tracking-[.22em]">
+                                      <p>{focused ? "> " : ""}{group.label}</p>
+                                      <span aria-hidden="true">{String(index + 1).padStart(2, "0")} / {String(group.artists.length).padStart(2, "0")}</span>
+                                    </div>
+                                    <div className="mt-1 flex items-center justify-between gap-1 overflow-hidden md:mt-3">
+                                      <span aria-hidden="true" className="nhb-artist-arrow text-xs">◀</span>
+                                      <p key={`${selected.name}-${focused ? tv.artistTransition : "idle"}`} style={{ "--artist-shift": `${tv.artistDirection * 18}px` } as CSSProperties} className={`nhb-artist-name min-w-0 text-center font-display uppercase leading-none tracking-[.04em] ${focused ? "text-base sm:text-xl md:text-3xl" : "text-sm sm:text-lg md:text-2xl"}`}>
+                                        <span aria-hidden="true" className="mr-1 font-mono text-[8px] opacity-40 md:mr-2 md:text-xs">[</span>{selected.name}<span aria-hidden="true" className="ml-1 font-mono text-[8px] opacity-40 md:ml-2 md:text-xs">]</span>
+                                      </p>
+                                      <span aria-hidden="true" className="nhb-artist-arrow text-xs">▶</span>
+                                    </div>
+                                  </div>
+                                })}
+                              </div>
+                              <p className="mt-2 shrink-0 text-center text-[6px] tracking-[.08em] text-[#b5a578]/55 md:mt-4 md:text-[8px]">↑ ↓ GROUP &nbsp; / &nbsp; ← → ARTIST &nbsp; / &nbsp; OK SELECT</p>
                             </div>}
                             {tv.screen === "exclusive-list" && <div className="mt-6 font-mono text-sm tracking-widest">
-                              {exclusiveArtist.exclusives.length ? exclusiveArtist.exclusives.map((item, index) => <div key={item.id} className={`border-b border-[#d2ba81]/15 py-3 ${tv.cursor === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}>
-                                {tv.cursor === index ? "> " : ""}{item.title}
-                              </div>) : <p className="mt-8 text-center">NO EXCLUSIVES YET</p>}
+                              {exclusiveArtist.exclusives.length ? exclusiveArtist.exclusives.flatMap((item, index) => {
+                                const previous = exclusiveArtist.exclusives[index - 1]
+                                const projectHeader = item.kind === "audio" && item.projectId &&
+                                  (previous?.kind !== "audio" || previous.projectId !== item.projectId)
+                                return [
+                                  ...(projectHeader ? [<div key={`project-${item.projectId}`} className="mb-1 mt-6 flex items-center gap-3 border-t border-[#d2ba81]/25 pt-3">
+                                    {item.kind === "audio" && item.coverUrl && <Image src={item.coverUrl} alt="" width={44} height={44} sizes="44px" className={`h-11 w-11 shrink-0 border object-cover transition-[filter,opacity] duration-200 ${tv.cursor === index || current?.artistSlug === (tv.exclusiveArtistContext.kind === "official" ? tv.exclusiveArtistContext.slug : tv.exclusiveArtistContext.id) && current?.artwork === item.coverUrl ? "brightness-100 opacity-100" : "brightness-75 opacity-75"}`} />}
+                                    <h3 className="text-[10px] font-normal tracking-[.18em] text-[#b5a578]/70">[ {item.projectTitle} ]</h3>
+                                  </div>] : []),
+                                  <div key={item.id} ref={tv.cursor === index ? selectedExclusiveRef : undefined} className={`flex items-center gap-3 border-b border-[#d2ba81]/15 py-2 ${tv.cursor === index ? "text-[#f2dfb5]" : "text-[#c0ae85]/60"}`}>
+                                    {item.kind === "audio" && !item.projectId && item.coverUrl && <Image src={item.coverUrl} alt="" width={44} height={44} sizes="44px" className={`h-11 w-11 shrink-0 border object-cover transition-[filter,opacity] duration-200 ${tv.cursor === index || current?.id === item.id ? "brightness-100 opacity-100" : "brightness-75 opacity-75"}`} />}
+                                    <span>{tv.cursor === index ? "> " : ""}{item.title}</span>
+                                  </div>,
+                                ]
+                              }) : <p className="mt-8 text-center">NO EXCLUSIVES YET</p>}
                             </div>}
-                            {tv.screen === "exclusive-item" && exclusive && <div className="absolute inset-x-5 bottom-5 top-16 md:inset-x-8">
-                              {exclusive.kind === "image" && <Image src={exclusive.imageUrl} alt={exclusive.alt} fill sizes="600px" className="object-contain" />}
-                              {exclusive.kind === "audio" && <>
-                                {exclusive.artwork && <Image src={exclusive.artwork} alt="" fill sizes="600px" className="object-contain" />}
-                                <p className="absolute inset-x-0 bottom-0 bg-black/70 p-3 text-center font-mono text-xs">{exclusive.title}{mediaError ? " / AUDIO UNAVAILABLE" : needsGesture ? " / PRESS OK TO PLAY" : ""}</p>
+                            {tv.screen === "exclusive-item" && visibleExclusive && <div className="absolute inset-0 overflow-hidden bg-[#070705]">
+                              {visibleExclusive.kind === "image" && <Image src={visibleExclusive.imageUrl} alt={visibleExclusive.alt} fill sizes="(max-width: 1024px) 71vw, 600px" className="object-contain" />}
+                              {visibleExclusive.kind === "audio" && <>
+                                {(current?.id === visibleExclusive.id ? current.artwork : visibleExclusive.coverUrl || visibleExclusive.artwork) ? <>
+                                  <Image src={(current?.id === visibleExclusive.id ? current.artwork : visibleExclusive.coverUrl || visibleExclusive.artwork)!} alt="" fill sizes="(max-width: 1024px) 71vw, 600px" className="absolute inset-0 scale-[1.08] object-cover opacity-60 blur-md brightness-[0.28] saturate-[0.65]" />
+                                  <Image src={(current?.id === visibleExclusive.id ? current.artwork : visibleExclusive.coverUrl || visibleExclusive.artwork)!} alt="" fill sizes="(max-width: 1024px) 71vw, 600px" className="object-cover" style={{ objectPosition: visibleExclusive.coverPosition ?? "center", transform: visibleExclusive.coverScale ? `scale(${visibleExclusive.coverScale})` : undefined }} />
+                                </> : <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(ellipse_at_center,rgba(190,158,92,.12),transparent_60%)]" />}
+                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/85 to-transparent px-3 pb-2 pt-12 text-center font-mono md:px-6 md:pb-4">
+                                  <p className="text-xs font-bold lowercase tracking-[.16em] text-[#f2dfb5] md:text-sm">{current?.id === visibleExclusive.id ? current.title : visibleExclusive.title}</p>
+                                  <p className="mt-1 text-[9px] uppercase tracking-[.2em] text-[#c0ae85]/85">{current?.id === visibleExclusive.id ? current.artist : exclusiveArtist.name}</p>
+                                  {current?.releaseTitle && <p className="mt-1 text-[8px] tracking-[.16em] text-[#b5a578]/65">[ {current.releaseTitle} ]</p>}
+                                  {mediaError ? <p className="mt-2 text-[8px]">AUDIO UNAVAILABLE</p> : needsGesture ? <p className="mt-2 text-[8px]">PRESS OK TO PLAY</p> : null}
+                                </div>
                               </>}
-                              {exclusive.kind === "video" && <BroadcastVideo key={exclusive.id} ref={exclusiveVideoRef} video={{ id: exclusive.id, title: exclusive.title, source: exclusive.source, thumbnail: exclusive.poster }} active={powerPhase === "on"} volume={volume} />}
+                              {visibleExclusive.kind === "video" && <BroadcastVideo key={visibleExclusive.id} ref={exclusiveVideoRef} video={{ id: visibleExclusive.id, title: visibleExclusive.title, source: visibleExclusive.source, thumbnail: visibleExclusive.poster }} active={powerPhase === "on"} volume={volume} />}
                             </div>}
                           </div>
                         )}
@@ -968,6 +1056,7 @@ export function BroadcastConsole() {
 
             <div
               ref={remoteRef}
+              data-tv-remote
               style={remoteStyle}
               className="relative w-[280px] md:w-[300px]"
             >

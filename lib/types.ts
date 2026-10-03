@@ -31,10 +31,11 @@ export interface ArchiveArtist {
   name: string
   releaseSlugs: string[]
   videos: MusicVideo[]
+  exclusives: ExclusiveContent[]
 }
 
 export type ExclusiveContent =
-  | { id: string; title: string; kind: "audio"; audioUrl: string; artwork?: string }
+  | { id: string; title: string; kind: "audio"; audioUrl: string; artwork?: string; coverUrl?: string; coverPosition?: string; coverScale?: number; projectId?: string; projectTitle?: string; trackNumber?: number }
   | { id: string; title: string; kind: "video"; source: VideoSource; poster?: string }
   | { id: string; title: string; kind: "image"; imageUrl: string; alt: string }
 

@@ -8,7 +8,7 @@ import { artists } from "@/lib/data"
 const labelMembers = artists
 
 const memberWindowImages: Record<string, string> = {
-  moxli: "/images/moxli-member.jpg",
+  moxli: "/images/moxli-member.png",
   matei: "/images/matei-member.png",
 }
 

@@ -11,6 +11,7 @@ type Owner = "music" | "video" | "browsing" | "off"
 type Session = {
   kind: "station" | "queue" | "exclusive"
   artistSlug: string | null
+  sourceTracks: PlayableTrack[]
   tracks: PlayableTrack[]
   index: number
   remaining: number[]
@@ -18,6 +19,18 @@ type Session = {
   shuffle: boolean
   repeat: RepeatMode
   failed: Set<number>
+}
+function reshuffleSession(active: Session, includePlayed = false) {
+  if (active.tracks.length < 2) return
+  const current = active.tracks[active.index]
+  const past = includePlayed ? [] : active.tracks.slice(0, active.index)
+  const upcoming = includePlayed ? active.tracks.filter((_, index) => index !== active.index) : active.tracks.slice(active.index + 1)
+  const order = shuffleCycle(upcoming.length)
+  const shuffled = order.map((index) => upcoming[index])
+  if (shuffled.length > 1 && shuffled.every((track, index) => track.id === upcoming[index].id)) shuffled.push(shuffled.shift()!)
+  active.tracks = [...past, current, ...shuffled]
+  active.index = past.length
+  active.remaining = []
 }
 interface AudioContextValue {
   current: PlayableTrack | null
@@ -41,7 +54,7 @@ interface AudioContextValue {
   nextTrack: () => void
   previousTrack: () => void
   startStation: (artistSlug: string, tracks: PlayableTrack[], preferredTrackId?: string, fresh?: boolean, autoplay?: boolean) => void
-  playExclusive: (track: PlayableTrack) => void
+  playExclusive: (track: PlayableTrack, queue?: PlayableTrack[]) => void
   restoreStation: (resume?: boolean) => void
   suspend: (owner: "video" | "browsing" | "off") => void
   releaseVideo: () => void
@@ -171,15 +184,15 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       }
       let next: number | undefined
       if (!failed && active.repeat === "one") next = index
-      else if (active.shuffle) {
-        if (!active.remaining.length && active.repeat === "all") active.remaining = shuffleCycle(active.tracks.length, index)
-        next = active.remaining.shift()
-        while (next !== undefined && active.failed.has(next)) next = active.remaining.shift()
-        if (next === undefined && failed && active.repeat === "all") {
-          active.remaining = shuffleCycle(active.tracks.length, index).filter((i) => !active.failed.has(i))
-          next = active.remaining.shift()
-        }
-      } else next = index + 1 < active.tracks.length ? index + 1 : active.repeat === "all" ? 0 : undefined
+      else next = index + 1 < active.tracks.length ? index + 1 : active.repeat === "all" ? 0 : undefined
+      while (next !== undefined && active.failed.has(next) && next !== index) {
+        next = next + 1 < active.tracks.length ? next + 1 : active.repeat === "all" ? 0 : undefined
+      }
+      if (next === index && active.failed.has(index)) next = undefined
+      if (next === undefined && active.shuffle && active.repeat === "all" && failed) {
+        reshuffleSession(active, true)
+        next = active.tracks.findIndex((_, trackIndex) => trackIndex > active.index && !active.failed.has(trackIndex))
+      }
       if (next === undefined) { setPlaying(false); if (failed) setMediaError(true); return }
       active.index = next
       active.time = 0
@@ -199,7 +212,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (active?.kind === "station" && active.artistSlug) stations.current.set(active.artistSlug, active)
     const retained = stations.current.get(artistSlug)
     const same = retained?.artistSlug === artistSlug && retained.tracks.length === tracks.length &&
-      retained.tracks.every((track, i) => track.id === tracks[i].id && track.audioUrl === tracks[i].audioUrl)
+      retained.tracks.every((track) => tracks.some((candidate) => track.id === candidate.id && track.audioUrl === candidate.audioUrl))
     // Return to a cached artist station without replacing its queue or shuffle state.
     if (same && !fresh && !preferredTrackId && session.current === retained) {
       station.current = retained
@@ -220,10 +233,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     claimMusic()
     const order = shuffleCycle(tracks.length)
     const preferred = tracks.findIndex((track) => track.id === preferredTrackId)
-    const index = preferred >= 0 ? preferred : order.shift() ?? 0
+    const trackOrder = preferred >= 0 ? [preferred, ...order.filter((i) => i !== preferred)] : order
     const next: Session = {
-      kind: "station", artistSlug, tracks, index,
-      remaining: preferred >= 0 ? order.filter((i) => i !== preferred) : order,
+      kind: "station", artistSlug, sourceTracks: [...tracks], tracks: trackOrder.map((i) => tracks[i]), index: 0, remaining: [],
       time: 0, shuffle: true, repeat: "all", failed: new Set(),
     }
     stations.current.set(artistSlug, next)
@@ -245,10 +257,19 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const releaseVideo = useCallback(() => {
     if (ownerRef.current === "video") restoreStation(false)
   }, [restoreStation])
-  const playExclusive = useCallback((track: PlayableTrack) => {
+  const playExclusive = useCallback((track: PlayableTrack, queue: PlayableTrack[] = [track]) => {
+    const prior = session.current
+    const sameQueue = prior?.kind === "exclusive" && prior.tracks.length === queue.length &&
+      prior.tracks.every((item) => queue.some((candidate) => candidate.id === item.id && candidate.audioUrl === item.audioUrl))
+    const tracks = sameQueue ? prior.tracks : [...queue]
+    const index = tracks.findIndex((item) => item.id === track.id)
+    if (index < 0) return
     pause()
     claimMusic()
-    session.current = { kind: "exclusive", artistSlug: track.artistSlug ?? null, tracks: [track], index: 0, remaining: [], time: 0, shuffle: false, repeat: "off", failed: new Set() }
+    session.current = {
+      kind: "exclusive", artistSlug: track.artistSlug ?? null, sourceTracks: sameQueue ? prior.sourceTracks : [...queue], tracks, index, remaining: [], time: 0,
+      shuffle: sameQueue ? prior.shuffle : false, repeat: sameQueue ? prior.repeat : "off", failed: sameQueue ? prior.failed : new Set(),
+    }
     load(true)
   }, [pause, claimMusic, load])
   const playQueue = useCallback((tracks: PlayableTrack[], index: number) => {
@@ -257,29 +278,34 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const prior = session.current
     const shuffle = prior?.kind === "queue" ? prior.shuffle : false
     const repeat = prior?.kind === "queue" ? prior.repeat : "off"
-    station.current = null
-    session.current = { kind: "queue", artistSlug: null, tracks, index, remaining: shuffleCycle(tracks.length).filter((i) => i !== index), time: 0, shuffle, repeat, failed: new Set() }
+    const rest = tracks.filter((_, i) => i !== index)
+    const trackOrder = shuffle ? [tracks[index], ...shuffleCycle(rest.length).map((i) => rest[i])] : tracks
+    session.current = { kind: "queue", artistSlug: null, sourceTracks: [...tracks], tracks: trackOrder, index: shuffle ? 0 : index, remaining: [], time: 0, shuffle, repeat, failed: new Set() }
     load(true)
   }, [pause, load])
   const selectTrack = useCallback((index: number) => {
     const active = session.current
-    if (ownerRef.current !== "music" || !active || (active.kind !== "station" && active.kind !== "queue") || !active.tracks[index]) return
+    if (ownerRef.current !== "music" || !active || !active.tracks[index]) return
     pause()
     active.index = index
     active.time = 0
     active.failed.clear()
-    active.remaining = active.shuffle ? shuffleCycle(active.tracks.length).filter((i) => i !== index) : []
+    active.remaining = []
     load(true)
   }, [pause, load])
   const nextTrack = useCallback(() => {
     if (ownerRef.current !== "music") return
     const active = session.current
-    if (active?.kind === "station" && active.shuffle) {
-      const next = active.remaining.shift() ?? (active.repeat === "all" ? shuffleCycle(active.tracks.length, active.index).shift() : undefined)
-      if (next !== undefined) { pause(); active.index = next; active.time = 0; load(true) }
-      return
+    if (!active?.tracks.length) return
+    if (active.index + 1 < active.tracks.length) selectTrack(active.index + 1)
+    else if (active.repeat === "all") {
+      if (active.shuffle && active.tracks.length > 1) {
+        reshuffleSession(active, true)
+        active.index = 1
+        active.time = 0
+        load(true)
+      } else selectTrack(0)
     }
-    if (active?.tracks.length) selectTrack(active.index + 1 < active.tracks.length ? active.index + 1 : active.repeat === "all" ? 0 : active.index)
   }, [load, pause, selectTrack])
   const previousTrack = useCallback(() => {
     const active = session.current
@@ -290,6 +316,25 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (audio.current?.paused) resume()
     else pause()
   }, [pause, resume])
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return
+      const target = event.target as HTMLElement | null
+      // Editing keeps Space input; elsewhere reserve it before any focused control.
+      if (target?.isContentEditable || target?.closest?.("input, textarea, select, [contenteditable]")) return
+      const alreadyHandled = event.defaultPrevented
+      event.preventDefault()
+      event.stopPropagation()
+      const focused = document.activeElement as HTMLElement | null
+      if (focused?.matches("[data-tv-remote] button, [data-audio-player] button")) focused.blur()
+      // Cancel native activation even while silent or repeating, but toggle only once.
+      if (event.repeat || alreadyHandled || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+      if (ownerRef.current !== "music" || !session.current?.tracks[session.current.index] || !audio.current) return
+      toggle()
+    }
+    window.addEventListener("keydown", onKeyDown, true)
+    return () => window.removeEventListener("keydown", onKeyDown, true)
+  }, [toggle])
   const play = useCallback((track: PlayableTrack) => {
     if (ownerRef.current !== "music") return
     if (session.current?.tracks[session.current.index]?.id === track.id) toggle()
@@ -312,14 +357,27 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   }, [resume])
   const toggleShuffle = useCallback(() => {
     const s = session.current
-    if (ownerRef.current !== "music" || !s || (s.kind !== "queue" && s.kind !== "station") || s.tracks.length < 2) return
-    s.shuffle = !s.shuffle
-    s.remaining = shuffleCycle(s.tracks.length).filter((i) => i !== s.index)
+    if (ownerRef.current !== "music" || !s || s.tracks.length < 2) return
+    const current = s.tracks[s.index]
+    if (s.shuffle) {
+      s.shuffle = false
+      s.tracks = [...s.sourceTracks]
+      s.index = s.tracks.findIndex((track) => track.id === current.id && track.audioUrl === current.audioUrl)
+      s.remaining = []
+    } else {
+      const upcoming = s.sourceTracks.filter((track) => track.id !== current.id || track.audioUrl !== current.audioUrl)
+      const shuffled = shuffleCycle(upcoming.length).map((index) => upcoming[index])
+      if (shuffled.length > 1 && shuffled.every((track, index) => track.id === upcoming[index].id)) shuffled.push(shuffled.shift()!)
+      s.shuffle = true
+      s.tracks = [current, ...shuffled]
+      s.index = 0
+      s.remaining = []
+    }
     refresh()
   }, [refresh])
   const cycleRepeat = useCallback(() => {
     const s = session.current
-    if (ownerRef.current !== "music" || !s || (s.kind !== "queue" && s.kind !== "station")) return
+    if (ownerRef.current !== "music" || !s) return
     s.repeat = s.repeat === "off" ? "all" : s.repeat === "all" ? "one" : "off"
     refresh()
   }, [refresh])

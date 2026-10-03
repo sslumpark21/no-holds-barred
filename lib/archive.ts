@@ -1,10 +1,11 @@
 import type { ArchiveArtist } from "./types"
 
 export const archiveArtists: ArchiveArtist[] = [
-  { id: "andreas-shinso", name: "Andreas Shinso", releaseSlugs: [], videos: [] },
+  { id: "andreas-shinso", name: "Andreas Shinso", releaseSlugs: [], videos: [], exclusives: [] },
   {
     id: "cyupercah",
     name: "Cyupercah",
+    exclusives: [],
     releaseSlugs: [],
     videos: [
       { id: "cyupercah-break", title: "Break.", youtubeUrl: "https://www.youtube.com/watch?v=hFYJ_h8PRtE" },
@@ -15,12 +16,14 @@ export const archiveArtists: ArchiveArtist[] = [
   {
     id: "moise6969",
     name: "moise6969",
+    exclusives: [],
     releaseSlugs: [],
     videos: [{ id: "stoner", title: "STONER", youtubeUrl: "https://www.youtube.com/watch?v=rk_jlzKdxc8" }],
   },
   {
     id: "2007",
     name: "2007",
+    exclusives: [],
     releaseSlugs: [],
     videos: [{ id: "2007-ix", title: "IX", youtubeUrl: "https://www.youtube.com/watch?v=2CSbxDDbfzo" }],
   },
